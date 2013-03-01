@@ -1,0 +1,35 @@
+[
+    'java',
+    'idea'
+].each {
+  apply plugin: it
+}
+
+repositories {
+  mavenCentral()
+}
+
+dependencies {
+  compile 'com.google.guava:guava:14.0'
+  testCompile 'junit:junit:4.11'
+}
+
+task initProject () << {
+  if (hasProperty('initPlugins')) {
+    initPlugins.split(',').each { plug -> project.apply { plugin(plug.trim()) } }
+  }
+
+  project.sourceSets*.allSource.srcDirTrees.flatten().dir.each { dir ->
+    dir.mkdirs()
+  }
+}
+
+task wrapper(type: Wrapper){
+  version '1.4'
+}
+
+idea.project.ipr {
+  withXml { provider ->
+    provider.node.component.find { it.@name == 'VcsDirectoryMappings' }.mapping.@vcs = 'Git'
+  }
+}
