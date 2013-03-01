@@ -16,43 +16,83 @@ import java.util.Map;
 
 
 public class AppletFrame extends ExitableFrame
-implements AppletStub, AppletContext
-{
+  implements AppletStub, AppletContext {
 
-    public AppletFrame(Applet applet, int width, int height, String title)
-    {
-        super(title);
+  public AppletFrame(Applet applet, int width, int height, String title) {
+    super(title);
 
-        this.resize(width, height);
-        this.add("Center", applet);
+    this.setSize(width, height);
+    this.add("Center", applet);
 
-        applet.setStub(this);
+    applet.setStub(this);
 
-        applet.init();
-        this.show();
-        applet.start();
-    }
+    applet.init();
+    this.setVisible(true);
+    applet.start();
+  }
 
-    public AppletFrame(Applet a, int x, int y) {
-        this(a, x, y, a.getClass().getName());
-    }
-    
-    // AppletStub methods
-    public boolean isActive() { return true; }
-    public URL getDocumentBase() { return null; }
-    public URL getCodeBase() { return null; }
-    public String getParameter(String name) { return ""; }
-    public AppletContext getAppletContext() { return this; }
-    public void appletResize(int width, int height) {}
+  // AppletStub methods
+  @Override
+  public boolean isActive() {
+    return true;
+  }
 
-    // AppletContext methods
-    public AudioClip getAudioClip(URL url) { return null; }
-    public Image getImage(URL url) { return null; }
-    public Applet getApplet(String name) { return null; }
-    public Enumeration getApplets() { return null; }
-    public void showDocument(URL url) { }
-    public void showDocument(URL url, String target) { }
-    public void showStatus(String status) { }
+  @Override
+  public URL getDocumentBase() {
+    return null;
+  }
+
+  @Override
+  public URL getCodeBase() {
+    return null;
+  }
+
+  @Override
+  public String getParameter(String name) {
+    return "";
+  }
+
+  @Override
+  public AppletContext getAppletContext() {
+    return this;
+  }
+
+  @Override
+  public void appletResize(int width, int height) {
+  }
+
+  // AppletContext methods
+  @Override
+  public AudioClip getAudioClip(URL url) {
+    return null;
+  }
+
+  @Override
+  public Image getImage(URL url) {
+    return null;
+  }
+
+  @Override
+  public Applet getApplet(String name) {
+    return null;
+  }
+
+  @Override
+  public Enumeration<Applet> getApplets() {
+    return null;
+  }
+
+  @Override
+  public void showDocument(URL url) {
+  }
+
+  @Override
+  public void showDocument(URL url, String target) {
+  }
+
+  @Override
+  public void showStatus(String status) {
+  }
 
   private Map<String, InputStream> streams = new HashMap<>();
 

@@ -8,23 +8,43 @@
 package iburrell.accrete;
 
 import java.awt.*;
+import java.awt.event.WindowEvent;
+import java.awt.event.WindowListener;
 
-public class ExitableFrame extends Frame
-{
+public class ExitableFrame extends Frame implements WindowListener {
 
-    public ExitableFrame() {
-        super();
-    }
+  public ExitableFrame(String t) {
+    super(t);
+    addWindowListener(this);
+  }
 
-    public ExitableFrame(String t) {
-        super(t);
-    }
+  @Override
+  public void windowOpened(WindowEvent e) {
+  }
 
-    public boolean handleEvent(Event e) {
-        if (e.id == Event.WINDOW_DESTROY)
-            System.exit(0);
-        return super.handleEvent(e);
-    }
+  @Override
+  public void windowClosing(WindowEvent e) {
+    dispose();
+  }
 
+  @Override
+  public void windowClosed(WindowEvent e) {
+  }
+
+  @Override
+  public void windowIconified(WindowEvent e) {
+  }
+
+  @Override
+  public void windowDeiconified(WindowEvent e) {
+  }
+
+  @Override
+  public void windowActivated(WindowEvent e) {
+  }
+
+  @Override
+  public void windowDeactivated(WindowEvent e) {
+  }
 }
 

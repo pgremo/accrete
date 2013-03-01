@@ -7,43 +7,41 @@
 
 package iburrell.accrete;
 
-import java.io.*;
+import java.io.PrintStream;
 
 /**
- *
  * Stores the data for a band of dust of gas.  Contains the inner and
  * outer edge, and whether it has dust or gas present.  Has a pointer
  * to maintain the list of bands.
- *
+ * <p/>
  * The list of DustBands is maintained by the Accrete class; the
  * internals are exposed for manipulation.
- *
  */
-class DustBand
-{
-    
-    double inner;       // inner edge (in AU)
-    double outer;       // outer edge (in AU)
-    boolean dust;       // dust present
-    boolean gas;        // gas present
-    DustBand next;
+class DustBand {
 
-    DustBand(double inner_limit, double outer_limit) {
-        this(inner_limit, outer_limit, true, true);
-    }
-    DustBand(double inner_limit, double outer_limit,
-             boolean dust_present, boolean gas_present) {
-        inner = inner_limit;
-        outer = outer_limit;
-        dust = dust_present;
-        gas = gas_present;
-        next = null;
-    }
+  double inner;       // inner edge (in AU)
+  double outer;       // outer edge (in AU)
+  boolean dust;       // dust present
+  boolean gas;        // gas present
+  DustBand next;
 
-    void Print(PrintStream out) {
-        out.println(inner + " " + outer + " " + dust + " " + gas);
-    }
-    
+  DustBand(double inner_limit, double outer_limit) {
+    this(inner_limit, outer_limit, true, true);
+  }
+
+  DustBand(double inner_limit, double outer_limit,
+           boolean dust_present, boolean gas_present) {
+    inner = inner_limit;
+    outer = outer_limit;
+    dust = dust_present;
+    gas = gas_present;
+    next = null;
+  }
+
+  void Print(PrintStream out) {
+    out.println(inner + " " + outer + " " + dust + " " + gas);
+  }
+
 }
 
 

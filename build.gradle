@@ -1,20 +1,26 @@
 [
-    'java',
-    'idea'
+  'java',
+  'idea'
 ].each {
   apply plugin: it
 }
 
+project.sourceCompatibility = 1.7
+project.targetCompatibility = 1.7
+
 repositories {
   mavenCentral()
+  maven {
+    url "http://repo.bodar.com/"
+  }
 }
 
 dependencies {
-  compile 'com.google.guava:guava:14.0'
+  compile 'com.googlecode.totallylazy:totallylazy:1042'
   testCompile 'junit:junit:4.11'
 }
 
-task initProject () << {
+task initProject() << {
   if (hasProperty('initPlugins')) {
     initPlugins.split(',').each { plug -> project.apply { plugin(plug.trim()) } }
   }
@@ -24,7 +30,7 @@ task initProject () << {
   }
 }
 
-task wrapper(type: Wrapper){
+task wrapper(type: Wrapper) {
   version '1.4'
 }
 
