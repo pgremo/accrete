@@ -1,4 +1,4 @@
-package iburrell.accrete;
+package accrete.postscript;
 // Author: Ian Burrell  <iburrell@leland.stanford.edu>
 // Created: 1997/01/15
 // Modified: 1997/02/09
@@ -31,7 +31,7 @@ public class Postscript {
 
   void begin(int numpage) {
     out.println("%!PS-Adobe-2.1");
-    out.println("%%Pages: " + numpage);
+    out.printf("%%%%Pages: %d%n", numpage);
     out.println("%%EndComments");
     out.println("/Helvetica findfont 12 scalefont setfont");
     out.println("0 setlinewidth");
@@ -50,10 +50,10 @@ public class Postscript {
   }
 
   void beginpage(int pg) {
-    out.println("%%Page: " + pg + " " + pg);
-    out.println((xoff + base) + " " + yoff + base + " translate");
-    out.println(xscale + " " + yscale + " " + " scale");
-    out.println("/Helvetica findfont " + 9 / xscale + " scalefont setfont");
+    out.printf("%%%%Page: %d %d%n", pg, pg);
+    out.printf("%s %s%s translate%n", xoff + base, yoff, base);
+    out.printf("%s %s  scale%n", xscale, yscale);
+    out.printf("/Helvetica findfont %s scalefont setfont%n", 9 / xscale);
     out.println("0 setlinewidth");
   }
 
@@ -71,19 +71,18 @@ public class Postscript {
   }
 
   void circle(double x, double y, double radius, boolean fill) {
-    out.print(x + " " + y + " " + radius + " 0 360 arc ");
-    String type = fill ? "fill" : "stroke";
-    out.println(type);
+    out.printf("%s %s %s 0 360 arc ", x, y, radius);
+    out.println(fill ? "fill" : "stroke");
   }
 
   void line(double x1, double y1, double x2, double y2) {
-    out.print(x1 + " " + y1 + " moveto ");
-    out.print(x2 + " " + y2 + " lineto stroke");
+    out.printf("%s %s moveto ", x1, y1);
+    out.printf("%s %s lineto stroke", x2, y2);
     out.println();
   }
 
   void text(double x, double y, String s) {
-    out.println(x + " " + y + " moveto (" + s + ") show newpath");
+    out.printf("%s %s moveto (%s) show newpath%n", x, y, s);
   }
 
 }

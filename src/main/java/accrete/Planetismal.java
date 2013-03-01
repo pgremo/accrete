@@ -5,12 +5,11 @@
 
 // Copyright 1997 Ian Burrell
 
-package iburrell.accrete;
+package accrete;
 
-import java.io.PrintStream;
-
-import static iburrell.accrete.DoleParams.Random;
-import static iburrell.accrete.DoleParams.RandomEccentricity;
+import static accrete.DoleParams.Random;
+import static accrete.DoleParams.RandomEccentricity;
+import static java.lang.String.format;
 
 /**
  * This class stores the data needed for a planetismal, which is
@@ -63,8 +62,7 @@ public class Planetismal {
   }
 
   static Planetismal RandomPlanetismal(double inner, double outer) {
-    return new Planetismal(Random(inner, outer),
-      RandomEccentricity());
+    return new Planetismal(Random(inner, outer), RandomEccentricity());
   }
 
   final double ReducedMargin() {
@@ -95,10 +93,10 @@ public class Planetismal {
     return DoleParams.CriticalMass(axis, eccn, luminosity);
   }
 
-  public void Print(PrintStream out) {
-    out.printf("%s %s %s", axis, eccn, mass);
-    if (mass > 2e-15) out.printf(" (%s)", mass * Astro.SOLAR_MASS_EARTH_MASS);
-    if (gas_giant) out.print(" giant");
-    out.println();
+  public String toString() {
+    String s = format("%s %s %s", axis, eccn, mass);
+    if (mass > 2e-15) s = format("%s (%s)", s, mass * Astro.SOLAR_MASS_EARTH_MASS);
+    if (gas_giant) s = s + " giant";
+    return s;
   }
 }

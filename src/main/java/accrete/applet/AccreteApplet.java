@@ -1,4 +1,7 @@
-package iburrell.accrete;
+package accrete.applet;
+
+import accrete.Accrete;
+import accrete.Planetismal;
 
 import java.applet.Applet;
 import java.awt.*;

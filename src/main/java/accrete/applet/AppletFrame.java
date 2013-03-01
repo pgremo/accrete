@@ -1,5 +1,5 @@
 
-package iburrell.accrete;
+package accrete.applet;
 
 import java.applet.Applet;
 import java.applet.AppletContext;

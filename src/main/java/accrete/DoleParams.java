@@ -5,9 +5,7 @@
 
 // Copyright 1997 Ian Burrell
 
-package iburrell.accrete;
-
-import iburrell.util.RandomScale;
+package accrete;
 
 /**
  * Static class that contains many for formulas and constants.  It

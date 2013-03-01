@@ -5,7 +5,7 @@
 
 // Copyright 1997 Ian Burrell
 
-package iburrell.accrete;
+package accrete;
 
 public class Astro {
 

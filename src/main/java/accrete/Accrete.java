@@ -30,11 +30,11 @@
  *
  */
 
-package iburrell.accrete;
+package accrete;
 
-import java.io.PrintStream;
-import java.util.Enumeration;
 import java.util.Vector;
+
+import static java.lang.Math.*;
 
 /**
  * This class does the accretion process and returns a list of
@@ -56,10 +56,6 @@ public class Accrete {
    */
   public Accrete() {
     this(1.0, 1.0);
-  }
-
-  public Accrete(double stell_mass) {
-    this(stell_mass, Astro.Luminosity(stell_mass));
   }
 
   public Accrete(double stell_mass, double stell_lum) {
@@ -87,7 +83,7 @@ public class Accrete {
    *
    * @return Vector containing all of the planets written out.
    */
-  public Vector<Planetismal> DistributePlanets() {
+  public Iterable<Planetismal> DistributePlanets() {
     dust_head = new DustBand(inner_dust, outer_dust);
     planet_head = null;
 
@@ -109,8 +105,7 @@ public class Accrete {
         dust_left = CheckDustLeft();
         CompressDustLanes();
 
-        if (!CoalescePlanetismals(tsml))
-          InsertPlanet(tsml);
+        if (!CoalescePlanetismals(tsml)) InsertPlanet(tsml);
 
       }
 
@@ -118,30 +113,6 @@ public class Accrete {
 
     return PlanetArray(planet_head);
 
-  }
-
-
-  /**
-   * Steps through list of dust bands checking to see if any of
-   * those that bands that overlap the given range have dust
-   * present.  This was originally done as a quick check with the
-   * swept limits using the full mass for newly injected nuclei.
-   */
-  boolean DustAvailable(double inside, double outside) {
-    DustBand curr = dust_head;
-    while ((curr != null) && (curr.outer < inside)) {
-      curr = curr.next;
-    }
-
-    boolean dust_here = false;
-    if (curr != null)
-      dust_here = curr.dust;
-
-    while ((curr != null) && (curr.inner < outside)) {
-      curr = curr.next;
-      dust_here = dust_here || curr.dust;
-    }
-    return dust_here;
   }
 
 
@@ -200,7 +171,7 @@ public class Accrete {
       inside = 0.0;
 
     double width = swept_width - outside - inside;
-    double term1 = 4.0 * Math.PI * nucleus.axis * nucleus.axis;
+    double term1 = 4.0 * PI * nucleus.axis * nucleus.axis;
     double term2 = (1.0 - nucleus.eccn * (outside - inside) / swept_width);
     double volume = term1 * nucleus.ReducedMargin() * width * term2;
 
@@ -312,7 +283,7 @@ public class Accrete {
         dist2 = curr.OuterEffectLimit() - curr.axis;
       }
 
-      if ((Math.abs(dist) <= dist1) || (Math.abs(dist) <= dist2)) {
+      if ((abs(dist) <= dist1) || (abs(dist) <= dist2)) {
         CoalesceTwoPlanets(curr, tsml);
         return true;
       }
@@ -329,16 +300,15 @@ public class Accrete {
   void CoalesceTwoPlanets(Planetismal a, Planetismal b) {
     double new_mass = a.mass + b.mass;
     double new_axis = new_mass / ((a.mass / a.axis) + (b.mass / b.axis));
-    double term1 = a.mass * Math.sqrt(a.axis * (1.0 - a.eccn * a.eccn));
-    double term2 = b.mass * Math.sqrt(b.axis * (1.0 - b.eccn * b.eccn));
-    double term3 = (term1 + term2) / (new_mass * Math.sqrt(new_axis));
+    double term1 = a.mass * sqrt(a.axis * (1.0 - a.eccn * a.eccn));
+    double term2 = b.mass * sqrt(b.axis * (1.0 - b.eccn * b.eccn));
+    double term3 = (term1 + term2) / (new_mass * sqrt(new_axis));
     double term4 = 1.0 - term3 * term3;
-    double new_eccn = Math.sqrt(Math.abs(term4));
+    double new_eccn = sqrt(abs(term4));
     a.mass = new_mass;
     a.axis = new_axis;
     a.eccn = new_eccn;
     a.gas_giant = a.gas_giant || b.gas_giant;
-    //AccreteDust(a);
   }
 
 
@@ -366,37 +336,15 @@ public class Accrete {
     }
   }
 
-
-  public void PrintClass(PrintStream out) {
-    out.println("stellar mass: " + stellar_mass);
-    out.println("stellar luminosity: " + stellar_luminosity);
-    out.println("bounds: " + inner_bound + "  " + outer_bound);
-    out.println("dust: " + inner_dust + "  " + outer_dust);
-  }
-
-  public void PrintDusts(PrintStream out) {
-    for (DustBand curr = dust_head; curr != null; curr = curr.next) {
-      curr.Print(out);
-    }
-  }
-
-  public void PrintPlanets(PrintStream out) {
-    for (Planetismal curr = planet_head; curr != null; curr = curr.next) {
-      curr.Print(out);
-    }
-  }
-
-  public static void PrintPlanets(PrintStream out, Vector<Planetismal> planets) {
-    Enumeration<Planetismal> e = planets.elements();
-    while (e.hasMoreElements()) {
-      Planetismal curr = e.nextElement();
-      curr.Print(System.out);
+  public static void PrintPlanets(Iterable<Planetismal> planets) {
+    for (Planetismal planet : planets) {
+      System.out.println(planet);
     }
   }
 
   // Converts a list of planets into a Vector.  The planets in the Vector
   // still contain the links but they aren't accessible to outside classes.
-  static Vector<Planetismal> PlanetArray(Planetismal head) {
+  static Iterable<Planetismal> PlanetArray(Planetismal head) {
     Vector<Planetismal> planets = new Vector<>();
     for (Planetismal curr = head; curr != null; curr = curr.next) {
       planets.addElement(curr);
@@ -405,10 +353,7 @@ public class Accrete {
   }
 
   public static void main(String[] args) {
-    Accrete gen = new Accrete();
-    Vector<Planetismal> pl = gen.DistributePlanets();
-    PrintPlanets(System.out, pl);
+    PrintPlanets(new Accrete().DistributePlanets());
   }
-
 }
 

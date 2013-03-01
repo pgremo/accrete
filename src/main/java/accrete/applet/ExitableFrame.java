@@ -5,7 +5,7 @@
 
 // Copyright 1996 Ian Burrell
 
-package iburrell.accrete;
+package accrete.applet;
 
 import java.awt.*;
 import java.awt.event.WindowEvent;

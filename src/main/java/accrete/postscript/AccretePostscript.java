@@ -1,9 +1,12 @@
-package iburrell.accrete;
+package accrete.postscript;
 // Author: Ian Burrell  <iburrell@leland.stanford.edu>
 // Created: 1997/01/15
 // Modified: 1997/02/09
 
 // Copyright 1997 Ian Burrell
+
+import accrete.Accrete;
+import accrete.Planetismal;
 
 import java.util.Enumeration;
 import java.util.Vector;

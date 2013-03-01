@@ -5,9 +5,9 @@
 
 // Copyright 1997 Ian Burrell
 
-package iburrell.accrete;
+package accrete;
 
-import java.io.PrintStream;
+import static java.lang.String.format;
 
 /**
  * Stores the data for a band of dust of gas.  Contains the inner and
@@ -38,8 +38,8 @@ class DustBand {
     next = null;
   }
 
-  void Print(PrintStream out) {
-    out.println(inner + " " + outer + " " + dust + " " + gas);
+  public String toString() {
+    return format("%s %s %s %s", inner, outer, dust, gas);
   }
 
 }
