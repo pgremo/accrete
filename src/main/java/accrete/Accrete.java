@@ -62,7 +62,7 @@ public class Accrete {
     this(1.0, 1.0);
   }
 
-  public Accrete(Star star){
+  public Accrete(Star star) {
     this.star = star;
   }
 
@@ -93,28 +93,17 @@ public class Accrete {
   public Iterable<Planetismal> DistributePlanets() {
     dust_head = new DustBand(inner_dust, outer_dust);
 
-    boolean dust_left = true;
-    while (dust_left) {
+    while (CheckDustLeft()) {
       Planetismal tsml = RandomPlanetismal(star, inner_bound, outer_bound);
-
-      double crit_mass = tsml.CriticalMass();
-
       double mass = AccreteDust(tsml);
-
-      if ((mass != 0.0) && (mass != PROTOPLANET_MASS)) {
-        if (mass >= crit_mass) tsml.gas_giant = true;
-        UpdateDustLanes(tsml.InnerSweptLimit(), tsml.OuterSweptLimit(), tsml.gas_giant);
-        dust_left = CheckDustLeft();
-        CompressDustLanes();
-
-        if (!CoalescePlanetismals(tsml)) planets.add(tsml);
-
-      }
-
+      if (mass == 0.0 || mass == PROTOPLANET_MASS) continue;
+      if (mass >= tsml.CriticalMass()) tsml.gas_giant = true;
+      UpdateDustLanes(tsml.InnerSweptLimit(), tsml.OuterSweptLimit(), tsml.gas_giant);
+      CompressDustLanes();
+      if (!CoalescePlanetismals(tsml)) planets.add(tsml);
     }
 
     return planets;
-
   }
 
 
@@ -182,6 +171,7 @@ public class Accrete {
       boolean new_gas = curr.gas && !used_gas;
       DustBand first, second, next = curr;
 
+      // Current is...
       // Case 1: Wide
       if ((curr.inner < min) && (curr.outer > max)) {
         first = new DustBand(min, max, false, new_gas);
@@ -192,7 +182,7 @@ public class Accrete {
         curr.outer = min;
         next = second;
       }
-      // Case 2: Out
+      // Case 2: Outer
       else if ((curr.inner < max) && (curr.outer > max)) {
         first = new DustBand(max, curr.outer, curr.dust, curr.gas);
         first.next = curr.next;
@@ -202,7 +192,7 @@ public class Accrete {
         curr.gas = new_gas;
         next = first;
       }
-      // Case 3: In
+      // Case 3: Inner
       else if ((curr.inner < min) && (curr.outer > min)) {
         first = new DustBand(min, curr.outer, false, new_gas);
         first.next = curr.next;
@@ -230,15 +220,10 @@ public class Accrete {
    * bounds where planets can form.
    */
   boolean CheckDustLeft() {
-    boolean dust_left = false;
-    for (DustBand curr = dust_head; curr != null; curr = curr.next) {
-      // check if band has dust left
-      if (curr.dust && (curr.outer >= inner_bound)
-        && (curr.inner <= outer_bound)) {
-        dust_left = true;
-      }
+    for (DustBand curr : dust_head) {
+      if (curr.dust && curr.outer >= inner_bound && curr.inner <= outer_bound) return true;
     }
-    return dust_left;
+    return false;
   }
 
 

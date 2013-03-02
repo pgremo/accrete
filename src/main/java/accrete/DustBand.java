@@ -7,6 +7,8 @@
 
 package accrete;
 
+import java.util.Iterator;
+
 import static java.lang.String.format;
 
 /**
@@ -17,7 +19,7 @@ import static java.lang.String.format;
  * The list of DustBands is maintained by the Accrete class; the
  * internals are exposed for manipulation.
  */
-class DustBand {
+class DustBand implements Iterable<DustBand> {
 
   double inner;       // inner edge (in AU)
   double outer;       // outer edge (in AU)
@@ -42,6 +44,29 @@ class DustBand {
     return format("%s %s %s %s", inner, outer, dust, gas);
   }
 
+  @Override
+  public Iterator<DustBand> iterator() {
+    return new Iterator<DustBand>() {
+      DustBand curr = DustBand.this;
+
+      @Override
+      public boolean hasNext() {
+        return curr != null;
+      }
+
+      @Override
+      public DustBand next() {
+        DustBand result = curr;
+        curr = curr.next;
+        return result;
+      }
+
+      @Override
+      public void remove() {
+        throw new UnsupportedOperationException();
+      }
+    };
+  }
 }
 
 
