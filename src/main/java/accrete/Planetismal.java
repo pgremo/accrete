@@ -23,11 +23,20 @@ import static java.lang.String.format;
  */
 public class Planetismal {
 
+  Star star;
   double axis;        // semi-major axis (AU)
   double eccn;        // eccentricity
   double mass;        // mass (solar mass)
   boolean gas_giant;
-  Planetismal next;
+
+  /**
+   * Calculates the density of dust at the given radius from the
+   * star.
+   */
+  double DustDensity() {
+    return DoleParams.DUST_DENSITY_COEFF * Math.sqrt(star.stellar_mass) *
+      Math.exp(-DoleParams.ALPHA * Math.pow(axis, 1.0 / DoleParams.N));
+  }
 
   // Accessors
 
@@ -49,48 +58,44 @@ public class Planetismal {
 
   static final double PROTOPLANET_MASS = 1.0E-15; // units of solar masses
 
-  Planetismal(double a, double e) {
-    this(a, e, PROTOPLANET_MASS, false);
+  Planetismal(Star star, double a, double e) {
+    this(star, a, e, PROTOPLANET_MASS, false);
   }
 
-  Planetismal(double a, double e, double m, boolean giant) {
+  Planetismal(Star star, double a, double e, double m, boolean giant) {
+    this.star = star;
     axis = a;
     eccn = e;
     mass = m;
     gas_giant = giant;
-    next = null;
   }
 
-  static Planetismal RandomPlanetismal(double inner, double outer) {
-    return new Planetismal(Random(inner, outer), RandomEccentricity());
+  static Planetismal RandomPlanetismal(Star star, double inner, double outer) {
+    return new Planetismal(star, Random(inner, outer), RandomEccentricity());
   }
 
-  final double ReducedMargin() {
+  double ReducedMargin() {
     return DoleParams.ReducedMargin(mass);
   }
 
-  final double InnerEffectLimit() {
-    return DoleParams.InnerEffectLimit(axis, eccn,
-      DoleParams.ReducedMargin(mass));
+  double InnerEffectLimit() {
+    return DoleParams.InnerEffectLimit(axis, eccn, DoleParams.ReducedMargin(mass));
   }
 
-  final double OuterEffectLimit() {
-    return DoleParams.OuterEffectLimit(axis, eccn,
-      DoleParams.ReducedMargin(mass));
+  double OuterEffectLimit() {
+    return DoleParams.OuterEffectLimit(axis, eccn, DoleParams.ReducedMargin(mass));
   }
 
-  final double InnerSweptLimit() {
-    return DoleParams.InnerSweptLimit(axis, eccn,
-      DoleParams.ReducedMargin(mass));
+  double InnerSweptLimit() {
+    return DoleParams.InnerSweptLimit(axis, eccn, DoleParams.ReducedMargin(mass));
   }
 
-  final double OuterSweptLimit() {
-    return DoleParams.OuterSweptLimit(axis, eccn,
-      DoleParams.ReducedMargin(mass));
+  double OuterSweptLimit() {
+    return DoleParams.OuterSweptLimit(axis, eccn, DoleParams.ReducedMargin(mass));
   }
 
-  final double CriticalMass(double luminosity) {
-    return DoleParams.CriticalMass(axis, eccn, luminosity);
+  double CriticalMass() {
+    return DoleParams.CriticalMass(axis, eccn, star.stellar_luminosity);
   }
 
   public String toString() {

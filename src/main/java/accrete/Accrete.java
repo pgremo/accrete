@@ -36,6 +36,9 @@ import java.util.Comparator;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
+import static accrete.DoleParams.*;
+import static accrete.Planetismal.PROTOPLANET_MASS;
+import static accrete.Planetismal.RandomPlanetismal;
 import static java.lang.Math.*;
 
 /**
@@ -46,8 +49,7 @@ import static java.lang.Math.*;
  */
 public class Accrete {
 
-  double stellar_mass;        // in Solar masses
-  double stellar_luminosity;  // in Solar luminsoities
+  private Star star;
   double inner_bound, outer_bound;    // in AU
   double inner_dust, outer_dust;      // in AU
 
@@ -60,19 +62,17 @@ public class Accrete {
     this(1.0, 1.0);
   }
 
-  public Accrete(double stell_mass, double stell_lum) {
-    stellar_mass = stell_mass;
-    stellar_luminosity = stell_lum;
-    inner_bound = DoleParams.InnermostPlanet(stellar_mass);
-    outer_bound = DoleParams.OutermostPlanet(stellar_mass);
-    inner_dust = DoleParams.InnerDustLimit();
-    outer_dust = DoleParams.OuterDustLimit(stellar_mass);
+  public Accrete(Star star){
+    this.star = star;
   }
 
-  // values that only depend on radius and are cached for each
-  // nucleus
-  double crit_mass;
-  double dust_density;
+  public Accrete(double stell_mass, double stell_lum) {
+    star = new Star(stell_mass, stell_lum);
+    inner_bound = InnermostPlanet(star.stellar_mass);
+    outer_bound = OutermostPlanet(star.stellar_mass);
+    inner_dust = InnerDustLimit();
+    outer_dust = OuterDustLimit(star.stellar_mass);
+  }
 
   DustBand dust_head = null;          // head of the list of dust bands
   SortedSet<Planetismal> planets = new TreeSet<>(new Comparator<Planetismal>() {
@@ -95,19 +95,15 @@ public class Accrete {
 
     boolean dust_left = true;
     while (dust_left) {
-      Planetismal tsml = Planetismal.RandomPlanetismal(inner_bound,
-        outer_bound);
+      Planetismal tsml = RandomPlanetismal(star, inner_bound, outer_bound);
 
-      dust_density = DoleParams.DustDensity(stellar_mass, tsml.axis);
-      crit_mass = tsml.CriticalMass(stellar_luminosity);
+      double crit_mass = tsml.CriticalMass();
 
       double mass = AccreteDust(tsml);
 
-      if ((mass != 0.0) && (mass != Planetismal.PROTOPLANET_MASS)) {
-        if (mass >= crit_mass)
-          tsml.gas_giant = true;
-        UpdateDustLanes(tsml.InnerSweptLimit(),
-          tsml.OuterSweptLimit(), tsml.gas_giant);
+      if ((mass != 0.0) && (mass != PROTOPLANET_MASS)) {
+        if (mass >= crit_mass) tsml.gas_giant = true;
+        UpdateDustLanes(tsml.InnerSweptLimit(), tsml.OuterSweptLimit(), tsml.gas_giant);
         dust_left = CheckDustLeft();
         CompressDustLanes();
 
@@ -149,32 +145,23 @@ public class Accrete {
    * from the band
    */
   double CollectDust(Planetismal nucleus, DustBand band) {
-    if (band == null)
-      return 0.0;
+    if (band == null) return 0.0;
 
     double swept_inner = nucleus.InnerSweptLimit();
     double swept_outer = nucleus.OuterSweptLimit();
 
-    if (swept_inner < 0.0)
-      swept_inner = 0.0;
-    if ((band.outer <= swept_inner) || (band.inner >= swept_outer))
-      return 0.0;
-    if (!band.dust)
-      return 0.0;
+    if (swept_inner < 0.0) swept_inner = 0.0;
+    if ((band.outer <= swept_inner) || (band.inner >= swept_outer)) return 0.0;
+    if (!band.dust) return 0.0;
 
-    double dust_density = this.dust_density;
-    double mass_density = DoleParams.MassDensity(dust_density, crit_mass,
-      nucleus.mass);
-    double density = (!band.gas || (nucleus.mass < crit_mass))
-      ? dust_density : mass_density;
+    double dust_density = nucleus.DustDensity();
+    double crit_mass = nucleus.CriticalMass();
+    double mass_density = MassDensity(dust_density, crit_mass, nucleus.mass);
+    double density = (!band.gas || (nucleus.mass < crit_mass)) ? dust_density : mass_density;
 
     double swept_width = swept_outer - swept_inner;
-    double outside = swept_outer - band.outer;
-    if (outside < 0.0)
-      outside = 0.0;
-    double inside = band.inner - swept_inner;
-    if (inside < 0.0)
-      inside = 0.0;
+    double outside = max(swept_outer - band.outer, 0);
+    double inside = max(band.inner - swept_inner, 0);
 
     double width = swept_width - outside - inside;
     double term1 = 4.0 * PI * nucleus.axis * nucleus.axis;
@@ -327,5 +314,6 @@ public class Accrete {
   public static void main(String[] args) {
     PrintPlanets(new Accrete().DistributePlanets());
   }
+
 }
 

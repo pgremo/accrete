@@ -7,6 +7,9 @@
 
 package accrete;
 
+import static java.lang.Math.pow;
+import static java.lang.Math.sqrt;
+
 /**
  * Static class that contains many for formulas and constants.  It
  * should be later modified to allow different parameters to be used to
@@ -21,10 +24,8 @@ class DoleParams {
    * Determines the critical mass limit, where the planet begins to
    * accrete gas as well as dust.
    */
-  static double CriticalMass(double radius, double eccentricity,
-                             double luminosity) {
-    return (B * Math.pow(PerihelionDistance(radius, eccentricity) *
-      Math.sqrt(luminosity), -0.75));
+  static double CriticalMass(double radius, double eccentricity, double luminosity) {
+    return (B * pow(PerihelionDistance(radius, eccentricity) * sqrt(luminosity), -0.75));
   }
 
 
@@ -41,7 +42,7 @@ class DoleParams {
   }
 
   static double ReducedMargin(double mass) {
-    return Math.pow(ReducedMass(mass), 1.0 / 4.0);
+    return pow(ReducedMass(mass), 1.0 / 4.0);
   }
 
   static final double CLOUD_ECCENTRICITY = 0.25;
@@ -70,27 +71,14 @@ class DoleParams {
     return HighBound(AphelionDistance(a, e) * (1.0 + m));
   }
 
-
   static final double K = 50.0;       // gas/dust ratio
   static final double DUST_DENSITY_COEFF = 1.5E-3; // A in Dole's paper
   static final double ALPHA = 5.0;    // Used in density calcs
   static final double N = 3.0;        // Used in density calcs
 
-  /**
-   * Calculates the density of dust at the given radius from the
-   * star.
-   */
-  static double DustDensity(double stellar_mass, double orbital_radius) {
-    return DUST_DENSITY_COEFF * Math.sqrt(stellar_mass) *
-      Math.exp(-ALPHA * Math.pow(orbital_radius, 1.0 / N));
+  static double MassDensity(double dust_density, double critical_mass, double mass) {
+    return K * dust_density / (1.0 + sqrt(critical_mass / mass) * (K - 1.0));
   }
-
-  static double MassDensity(double dust_density, double critical_mass,
-                            double mass) {
-    return K * dust_density /
-      (1.0 + Math.sqrt(critical_mass / mass) * (K - 1.0));
-  }
-
 
   static RandomScale gen = new RandomScale();
 
@@ -105,12 +93,11 @@ class DoleParams {
   static final double ECCENTRICITY_COEFF = 0.077;
 
   static double RandomEccentricity() {
-    return (1.0 - Math.pow(Random(), ECCENTRICITY_COEFF));
+    return (1.0 - pow(Random(), ECCENTRICITY_COEFF));
   }
 
-
   static double ScaleCubeRootMass(double scale, double mass) {
-    return scale * Math.pow(mass, 1.0 / 3.0);
+    return scale * pow(mass, 1.0 / 3.0);
   }
 
   static double InnerDustLimit() {
