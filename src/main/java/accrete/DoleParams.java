@@ -80,7 +80,7 @@ class DoleParams {
     return K * dust_density / (1.0 + sqrt(critical_mass / mass) * (K - 1.0));
   }
 
-  static RandomScale gen = new RandomScale();
+  static RandomScale gen = new RandomScale(11223344);
 
   static double Random() {
     return gen.randomDouble();

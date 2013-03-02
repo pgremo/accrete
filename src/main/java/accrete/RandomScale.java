@@ -8,6 +8,10 @@ public class RandomScale {
     gen = new Random();
   }
 
+  public RandomScale(long seed){
+    gen = new Random(seed);
+  }
+
   public double randomDouble() {
     return gen.nextDouble();
   }

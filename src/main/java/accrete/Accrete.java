@@ -32,13 +32,22 @@
 
 package accrete;
 
-import java.util.*;
+import com.googlecode.totallylazy.Callable2;
+import com.googlecode.totallylazy.Function1;
+import com.googlecode.totallylazy.Predicate;
+import com.googlecode.totallylazy.Sequence;
+
+import java.util.Comparator;
+import java.util.Iterator;
+import java.util.Set;
+import java.util.TreeSet;
 
 import static accrete.DoleParams.*;
 import static accrete.Planetismal.PROTOPLANET_MASS;
 import static accrete.Planetismal.RandomPlanetismal;
+import static com.googlecode.totallylazy.Sequences.flatten;
+import static com.googlecode.totallylazy.Sequences.sequence;
 import static java.lang.Math.*;
-import static java.util.Arrays.asList;
 
 /**
  * This class does the accretion process and returns a list of
@@ -69,7 +78,7 @@ public class Accrete {
     outer_dust = OuterDustLimit(star.stellar_mass);
   }
 
-  List<DustBand> dust_head = null;          // head of the list of dust bands
+  Sequence<DustBand> dust_head = null;          // head of the list of dust bands
   Set<Planetismal> planets = new TreeSet<>(new Comparator<Planetismal>() {
     @Override
     public int compare(Planetismal o1, Planetismal o2) {
@@ -85,14 +94,14 @@ public class Accrete {
    * @return Vector containing all of the planets written out.
    */
   public Iterable<Planetismal> DistributePlanets() {
-    dust_head = asList(new DustBand(inner_dust, outer_dust));
+    dust_head = sequence(new DustBand(inner_dust, outer_dust));
 
     while (CheckDustLeft()) {
       Planetismal tsml = RandomPlanetismal(star, inner_bound, outer_bound);
-      double mass = AccreteDust(tsml);
-      if (mass == 0.0 || mass == PROTOPLANET_MASS) continue;
-      if (mass >= tsml.CriticalMass()) tsml.gas_giant = true;
-      UpdateDustLanes(tsml.InnerSweptLimit(), tsml.OuterSweptLimit(), tsml.gas_giant);
+      tsml = AccreteDust(tsml);
+      if (tsml.mass == 0.0 || tsml.mass == PROTOPLANET_MASS) continue;
+      tsml.gas_giant = tsml.mass >= tsml.CriticalMass();
+      UpdateDustLanes(tsml);
       CompressDustLanes();
       if (!CoalescePlanetismals(tsml)) planets.add(tsml);
     }
@@ -106,18 +115,20 @@ public class Accrete {
    * more.  Returns the new mass for the planetismal; also changes
    * the planetismal's mass.
    */
-  double AccreteDust(Planetismal nucleus) {
+  Planetismal AccreteDust(final Planetismal nucleus) {
     double new_mass = nucleus.mass;
     do {
       nucleus.mass = new_mass;
-      new_mass = 0;
-      for (DustBand curr : dust_head) {
-        new_mass += CollectDust(nucleus, curr);
-      }
+      new_mass = dust_head.fold(0.0, new Callable2<Double, DustBand, Double>() {
+        @Override
+        public Double call(Double o, DustBand dustBand) throws Exception {
+          return o + CollectDust(nucleus, dustBand);
+        }
+      });
     }
     while ((new_mass - nucleus.mass) > (0.0001 * nucleus.mass));
     nucleus.mass = new_mass;
-    return nucleus.mass;
+    return nucleus;
   }
 
   /**
@@ -126,19 +137,17 @@ public class Accrete {
    * from the band
    */
   double CollectDust(Planetismal nucleus, DustBand band) {
-    if (band == null) return 0.0;
-
     double swept_inner = nucleus.InnerSweptLimit();
     double swept_outer = nucleus.OuterSweptLimit();
 
     if (swept_inner < 0.0) swept_inner = 0.0;
-    if ((band.outer <= swept_inner) || (band.inner >= swept_outer)) return 0.0;
+    if (band.outer <= swept_inner || band.inner >= swept_outer) return 0.0;
     if (!band.dust) return 0.0;
 
     double dust_density = nucleus.DustDensity();
     double crit_mass = nucleus.CriticalMass();
     double mass_density = MassDensity(dust_density, crit_mass, nucleus.mass);
-    double density = (!band.gas || (nucleus.mass < crit_mass)) ? dust_density : mass_density;
+    double density = (!band.gas || nucleus.mass < crit_mass) ? dust_density : mass_density;
 
     double swept_width = swept_outer - swept_inner;
     double outside = max(swept_outer - band.outer, 0);
@@ -146,75 +155,70 @@ public class Accrete {
 
     double width = swept_width - outside - inside;
     double term1 = 4.0 * PI * nucleus.axis * nucleus.axis;
-    double term2 = (1.0 - nucleus.eccn * (outside - inside) / swept_width);
+    double term2 = 1.0 - nucleus.eccn * (outside - inside) / swept_width;
     double volume = term1 * nucleus.ReducedMargin() * width * term2;
 
     return volume * density;
 
   }
 
-  /**
-   * Updates the dust lanes covered by the given range by splitting
-   * if necessary and updating the dust and gas present fields.
-   */
-  void UpdateDustLanes(double min, double max, boolean used_gas) {
-    List<DustBand> bands = new ArrayList<>();
-    for (DustBand curr : dust_head) {
-      CalculateBand(bands, curr, min, max, curr.gas && !used_gas);
-    }
-    dust_head = bands;
+  private void UpdateDustLanes(final Planetismal tsml) {
+    dust_head = flatten(dust_head.map(new Function1<DustBand, Sequence<DustBand>>() {
+      @Override
+      public Sequence<DustBand> call(DustBand curr) throws Exception {
+        return CalculateBand(curr, tsml.InnerSweptLimit(), tsml.OuterSweptLimit(), curr.gas && !tsml.gas_giant);
+      }
+    }));
   }
 
-  private void CalculateBand(List<DustBand> bands, DustBand curr, double min, double max, boolean new_gas) {
-    bands.add(curr);
-
+  private Sequence<DustBand> CalculateBand(DustBand curr, double min, double max, boolean new_gas) {
     // Current is...
     // Case 1: Wider
     if (curr.inner < min && curr.outer > max) {
-      CalculateBand(bands, new DustBand(min, max, false, new_gas), min, max, new_gas);
-      CalculateBand(bands, new DustBand(max, curr.outer, curr.dust, curr.gas), min, max, new_gas);
-      curr.outer = min;
+      return sequence(
+        new DustBand(curr.inner, min, curr.dust, curr.gas),
+        new DustBand(min, max, false, new_gas),
+        new DustBand(max, curr.outer, curr.dust, curr.gas));
     }
     // Case 2: Outer
     else if (curr.inner < max && curr.outer > max) {
-      CalculateBand(bands, new DustBand(max, curr.outer, curr.dust, curr.gas), min, max, new_gas);
-      curr.outer = max;
-      curr.dust = false;
-      curr.gas = new_gas;
+      return sequence(
+        new DustBand(curr.inner, max, false, new_gas),
+        new DustBand(max, curr.outer, curr.dust, curr.gas));
     }
     // Case 3: Inner
     else if (curr.inner < min && curr.outer > min) {
-      CalculateBand(bands, new DustBand(min, curr.outer, false, new_gas), min, max, new_gas);
-      curr.outer = min;
+      return sequence(
+        new DustBand(curr.inner, min, curr.dust, curr.gas),
+        new DustBand(min, curr.outer, false, new_gas));
     }
     // Case 4: Narrower
     else if (curr.inner >= min && curr.outer <= max) {
-      curr.dust = false;
-      curr.gas = new_gas;
+      return sequence(new DustBand(curr.inner, curr.outer, false, new_gas));
     }
-    // Case 5: Not
-    else if (curr.inner > max || curr.outer < min) {
-    }
+    return sequence(curr);
   }
 
   /**
    * Compresses adjacent lanes that have the same status.
    */
   void CompressDustLanes() {
-    List<DustBand> new_bands = new ArrayList<>();
+    Sequence<DustBand> new_bands = sequence();
+
     Iterator<DustBand> bands = dust_head.iterator();
     if (!bands.hasNext()) return;
     DustBand curr = bands.next();
-    new_bands.add(curr);
+    new_bands = new_bands.add(curr);
+
     while (bands.hasNext()) {
       DustBand next = bands.next();
-      if (curr.dust == next.dust && curr.gas == next.gas) {
-        curr.outer = next.outer;
-      } else {
+      if (curr.dust != next.dust || curr.gas != next.gas) {
         curr = next;
-        new_bands.add(curr);
+        new_bands = new_bands.add(curr);
       }
+      curr.outer = next.outer;
     }
+
     dust_head = new_bands;
   }
 
@@ -223,10 +227,12 @@ public class Accrete {
    * bounds where planets can form.
    */
   boolean CheckDustLeft() {
-    for (DustBand curr : dust_head) {
-      if (curr.dust && curr.outer >= inner_bound && curr.inner <= outer_bound) return true;
-    }
-    return false;
+    return dust_head.exists(new Predicate<DustBand>() {
+      @Override
+      public boolean matches(DustBand curr) {
+        return curr.dust && curr.outer >= inner_bound && curr.inner <= outer_bound;
+      }
+    });
   }
 
   /**
