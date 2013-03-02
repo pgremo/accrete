@@ -32,14 +32,13 @@
 
 package accrete;
 
-import java.util.Comparator;
-import java.util.SortedSet;
-import java.util.TreeSet;
+import java.util.*;
 
 import static accrete.DoleParams.*;
 import static accrete.Planetismal.PROTOPLANET_MASS;
 import static accrete.Planetismal.RandomPlanetismal;
 import static java.lang.Math.*;
+import static java.util.Arrays.asList;
 
 /**
  * This class does the accretion process and returns a list of
@@ -59,29 +58,24 @@ public class Accrete {
    * the star.
    */
   public Accrete() {
-    this(1.0, 1.0);
+    this(new Star(1.0, 1.0));
   }
 
   public Accrete(Star star) {
     this.star = star;
-  }
-
-  public Accrete(double stell_mass, double stell_lum) {
-    star = new Star(stell_mass, stell_lum);
     inner_bound = InnermostPlanet(star.stellar_mass);
     outer_bound = OutermostPlanet(star.stellar_mass);
     inner_dust = InnerDustLimit();
     outer_dust = OuterDustLimit(star.stellar_mass);
   }
 
-  DustBand dust_head = null;          // head of the list of dust bands
-  SortedSet<Planetismal> planets = new TreeSet<>(new Comparator<Planetismal>() {
+  List<DustBand> dust_head = null;          // head of the list of dust bands
+  Set<Planetismal> planets = new TreeSet<>(new Comparator<Planetismal>() {
     @Override
     public int compare(Planetismal o1, Planetismal o2) {
       return Double.valueOf(o1.axis).compareTo(o2.axis);
     }
   });
-
 
   /**
    * This function does the main work of creating the planets.  It
@@ -91,7 +85,7 @@ public class Accrete {
    * @return Vector containing all of the planets written out.
    */
   public Iterable<Planetismal> DistributePlanets() {
-    dust_head = new DustBand(inner_dust, outer_dust);
+    dust_head = asList(new DustBand(inner_dust, outer_dust));
 
     while (CheckDustLeft()) {
       Planetismal tsml = RandomPlanetismal(star, inner_bound, outer_bound);
@@ -106,7 +100,6 @@ public class Accrete {
     return planets;
   }
 
-
   /**
    * Repeatedly accretes dust and gas onto the new planetismal by
    * sweeping out gas lanes until the planetismal doesn't grow any
@@ -118,7 +111,7 @@ public class Accrete {
     do {
       nucleus.mass = new_mass;
       new_mass = 0;
-      for (DustBand curr = dust_head; curr != null; curr = curr.next) {
+      for (DustBand curr : dust_head) {
         new_mass += CollectDust(nucleus, curr);
       }
     }
@@ -126,7 +119,6 @@ public class Accrete {
     nucleus.mass = new_mass;
     return nucleus.mass;
   }
-
 
   /**
    * Returns the amount of dust and gas collected from the single
@@ -161,59 +153,70 @@ public class Accrete {
 
   }
 
-
   /**
    * Updates the dust lanes covered by the given range by splitting
    * if necessary and updating the dust and gas present fields.
    */
   void UpdateDustLanes(double min, double max, boolean used_gas) {
-    for (DustBand curr = dust_head; curr != null; curr = curr.next) {
-      boolean new_gas = curr.gas && !used_gas;
-      DustBand first, second, next = curr;
+    List<DustBand> bands = new ArrayList<>();
+    for (DustBand curr : dust_head) {
+      CalculateBand(bands, curr, min, max, curr.gas && !used_gas);
+    }
+    dust_head = bands;
+  }
 
-      // Current is...
-      // Case 1: Wide
-      if ((curr.inner < min) && (curr.outer > max)) {
-        first = new DustBand(min, max, false, new_gas);
-        second = new DustBand(max, curr.outer, curr.dust, curr.gas);
-        first.next = second;
-        second.next = curr.next;
-        curr.next = first;
-        curr.outer = min;
-        next = second;
-      }
-      // Case 2: Outer
-      else if ((curr.inner < max) && (curr.outer > max)) {
-        first = new DustBand(max, curr.outer, curr.dust, curr.gas);
-        first.next = curr.next;
-        curr.next = first;
-        curr.outer = max;
-        curr.dust = false;
-        curr.gas = new_gas;
-        next = first;
-      }
-      // Case 3: Inner
-      else if ((curr.inner < min) && (curr.outer > min)) {
-        first = new DustBand(min, curr.outer, false, new_gas);
-        first.next = curr.next;
-        curr.next = first;
-        curr.outer = min;
-        next = first;
-      }
-      // Case 4: Narrow
-      else if ((curr.inner >= min) && (curr.outer <= max)) {
-        curr.dust = false;
-        curr.gas = new_gas;
-        next = curr;
-      }
-      // Case 5: Not
-      else if ((curr.inner > max) || (curr.outer < min)) {
-        next = curr;
-      }
-      curr = next;
+  private void CalculateBand(List<DustBand> bands, DustBand curr, double min, double max, boolean new_gas) {
+    bands.add(curr);
+
+    // Current is...
+    // Case 1: Wider
+    if (curr.inner < min && curr.outer > max) {
+      CalculateBand(bands, new DustBand(min, max, false, new_gas), min, max, new_gas);
+      CalculateBand(bands, new DustBand(max, curr.outer, curr.dust, curr.gas), min, max, new_gas);
+      curr.outer = min;
+    }
+    // Case 2: Outer
+    else if (curr.inner < max && curr.outer > max) {
+      CalculateBand(bands, new DustBand(max, curr.outer, curr.dust, curr.gas), min, max, new_gas);
+      curr.outer = max;
+      curr.dust = false;
+      curr.gas = new_gas;
+    }
+    // Case 3: Inner
+    else if (curr.inner < min && curr.outer > min) {
+      CalculateBand(bands, new DustBand(min, curr.outer, false, new_gas), min, max, new_gas);
+      curr.outer = min;
+    }
+    // Case 4: Narrower
+    else if (curr.inner >= min && curr.outer <= max) {
+      curr.dust = false;
+      curr.gas = new_gas;
+    }
+    // Case 5: Not
+    else if (curr.inner > max || curr.outer < min) {
     }
   }
 
+  /**
+   * Compresses adjacent lanes that have the same status.
+   */
+  void CompressDustLanes() {
+    List<DustBand> new_bands = new ArrayList<>();
+    Iterator<DustBand> bands = dust_head.iterator();
+    if (!bands.hasNext()) return;
+    DustBand curr = bands.next();
+    new_bands.add(curr);
+    while (bands.hasNext()) {
+      DustBand next = bands.next();
+      if (curr.dust == next.dust && curr.gas == next.gas) {
+        curr.outer = next.outer;
+      } else {
+        curr = next;
+        new_bands.add(curr);
+      }
+    }
+    dust_head = new_bands;
+  }
 
   /**
    * Checks if there is any dust remaining in any bands inside the
@@ -225,24 +228,6 @@ public class Accrete {
     }
     return false;
   }
-
-
-  /**
-   * Compresses adjacent lanes that have the same status.
-   */
-  void CompressDustLanes() {
-    DustBand next;
-    for (DustBand curr = dust_head; curr != null; curr = next) {
-      next = curr.next;
-      if (next != null && (curr.dust == next.dust)
-        && (curr.gas == next.gas)) {
-        curr.outer = next.outer;
-        curr.next = next.next;
-        next = curr;
-      }
-    }
-  }
-
 
   /**
    * Searches the existing planet list for any that overlap with the
@@ -269,7 +254,6 @@ public class Accrete {
     return false;
   }
 
-
   /**
    * Coalesces two planet together.  The resulting planet is saved
    * back into the first one (which is assumed to be the one present
@@ -288,7 +272,6 @@ public class Accrete {
     a.eccn = new_eccn;
     a.gas_giant = a.gas_giant || b.gas_giant;
   }
-
 
   public static void PrintPlanets(Iterable<Planetismal> planets) {
     for (Planetismal planet : planets) {
