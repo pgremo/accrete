@@ -7,8 +7,6 @@ import java.applet.Applet;
 import java.awt.*;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
-import java.util.Enumeration;
-import java.util.Vector;
 
 import static java.awt.Color.black;
 import static java.awt.Color.white;
@@ -18,7 +16,7 @@ import static java.lang.Math.pow;
 public class AccreteApplet extends Applet implements MouseListener, Runnable {
 
   private Accrete gen = null;
-  private Vector planets = null;
+  private Iterable<Planetismal> planets = null;
 
   public void init() {
     setBackground(white);
@@ -72,10 +70,7 @@ public class AccreteApplet extends Applet implements MouseListener, Runnable {
     int vscale = vscale();
     int rscale = hscale / 30;
 
-    Enumeration e = planets.elements();
-
-    while (e.hasMoreElements()) {
-      Planetismal curr = (Planetismal) e.nextElement();
+    for (Planetismal curr : planets) {
       double au = log10(curr.getOrbitalAxis());
       double rad = pow(curr.getMassEarth(), 1.0 / 3.0);
       int r = (int) (rad * (double) rscale);

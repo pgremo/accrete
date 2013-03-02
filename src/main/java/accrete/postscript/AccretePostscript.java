@@ -8,9 +8,6 @@ package accrete.postscript;
 import accrete.Accrete;
 import accrete.Planetismal;
 
-import java.util.Enumeration;
-import java.util.Vector;
-
 public class AccretePostscript extends Postscript {
 
   Accrete gen;
@@ -25,11 +22,9 @@ public class AccretePostscript extends Postscript {
     begin(1);
     logscale("AU");
 
-    Vector system = gen.DistributePlanets();
+    Iterable<Planetismal> system = gen.DistributePlanets();
 
-    Enumeration e = system.elements();
-    while (e.hasMoreElements()) {
-      Planetismal curr = (Planetismal) e.nextElement();
+    for (Planetismal curr : system) {
       double au = log10(curr.getOrbitalAxis());
       double r = Math.pow(curr.getMassSolar(), 1.0 / 3.0);
       circle(au, 0, r, curr.isGasGiant());

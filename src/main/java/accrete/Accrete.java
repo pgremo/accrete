@@ -32,7 +32,9 @@
 
 package accrete;
 
-import java.util.Vector;
+import java.util.Comparator;
+import java.util.SortedSet;
+import java.util.TreeSet;
 
 import static java.lang.Math.*;
 
@@ -73,7 +75,12 @@ public class Accrete {
   double dust_density;
 
   DustBand dust_head = null;          // head of the list of dust bands
-  Planetismal planet_head = null;     // head of the list planetismals
+  SortedSet<Planetismal> planets = new TreeSet<>(new Comparator<Planetismal>() {
+    @Override
+    public int compare(Planetismal o1, Planetismal o2) {
+      return Double.valueOf(o1.axis).compareTo(o2.axis);
+    }
+  });
 
 
   /**
@@ -85,7 +92,6 @@ public class Accrete {
    */
   public Iterable<Planetismal> DistributePlanets() {
     dust_head = new DustBand(inner_dust, outer_dust);
-    planet_head = null;
 
     boolean dust_left = true;
     while (dust_left) {
@@ -105,13 +111,13 @@ public class Accrete {
         dust_left = CheckDustLeft();
         CompressDustLanes();
 
-        if (!CoalescePlanetismals(tsml)) InsertPlanet(tsml);
+        if (!CoalescePlanetismals(tsml)) planets.add(tsml);
 
       }
 
     }
 
-    return PlanetArray(planet_head);
+    return planets;
 
   }
 
@@ -272,7 +278,7 @@ public class Accrete {
    * the two planets are coalesced into one.
    */
   boolean CoalescePlanetismals(Planetismal tsml) {
-    for (Planetismal curr = planet_head; curr != null; curr = curr.next) {
+    for (Planetismal curr : planets) {
       double dist = curr.axis - tsml.axis;
       double dist1, dist2;
       if (dist > 0.0) {
@@ -312,44 +318,10 @@ public class Accrete {
   }
 
 
-  /**
-   * Inserts the given planetismal into the list of planets.  The
-   * list is kept in sorted order based on the semi-major axis.
-   */
-  void InsertPlanet(Planetismal tsml) {
-    if (planet_head == null)
-      planet_head = tsml;
-    else {
-      if (tsml.axis < planet_head.axis) {
-        tsml.next = planet_head;
-        planet_head = tsml;
-      } else {
-        Planetismal prev = planet_head;
-        Planetismal curr = planet_head.next;
-        while ((curr != null) && (curr.axis < tsml.axis)) {
-          prev = curr;
-          curr = curr.next;
-        }
-        tsml.next = curr;
-        prev.next = tsml;
-      }
-    }
-  }
-
   public static void PrintPlanets(Iterable<Planetismal> planets) {
     for (Planetismal planet : planets) {
       System.out.println(planet);
     }
-  }
-
-  // Converts a list of planets into a Vector.  The planets in the Vector
-  // still contain the links but they aren't accessible to outside classes.
-  static Iterable<Planetismal> PlanetArray(Planetismal head) {
-    Vector<Planetismal> planets = new Vector<>();
-    for (Planetismal curr = head; curr != null; curr = curr.next) {
-      planets.addElement(curr);
-    }
-    return planets;
   }
 
   public static void main(String[] args) {
