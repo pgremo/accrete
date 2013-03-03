@@ -7,8 +7,9 @@
 
 package accrete;
 
-import static accrete.DoleParams.Random;
-import static accrete.DoleParams.RandomEccentricity;
+import static accrete.Astro.SOLAR_MASS_EARTH_MASS;
+import static accrete.DoleParams.*;
+import static java.lang.Math.*;
 import static java.lang.String.format;
 
 /**
@@ -34,8 +35,7 @@ public class Planetismal {
    * star.
    */
   double DustDensity() {
-    return DoleParams.DUST_DENSITY_COEFF * Math.sqrt(star.stellar_mass) *
-      Math.exp(-DoleParams.ALPHA * Math.pow(axis, 1.0 / DoleParams.N));
+    return DUST_DENSITY_COEFF * sqrt(star.stellar_mass) * exp(-ALPHA * pow(axis, 1.0 / DoleParams.N));
   }
 
   // Accessors
@@ -49,7 +49,7 @@ public class Planetismal {
   }
 
   public double getMassEarth() {
-    return mass * Astro.SOLAR_MASS_EARTH_MASS;
+    return mass * SOLAR_MASS_EARTH_MASS;
   }
 
   public boolean isGasGiant() {
@@ -100,7 +100,7 @@ public class Planetismal {
 
   public String toString() {
     String s = format("%s %s %s", axis, eccn, mass);
-    if (mass > 2e-15) s = format("%s (%s)", s, mass * Astro.SOLAR_MASS_EARTH_MASS);
+    if (mass > 2e-15) s = format("%s (%s)", s, mass * SOLAR_MASS_EARTH_MASS);
     if (gas_giant) s = s + " giant";
     return s;
   }

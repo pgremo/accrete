@@ -40,6 +40,9 @@ import java.util.Iterator;
 import static accrete.DoleParams.*;
 import static accrete.Planetismal.PROTOPLANET_MASS;
 import static accrete.Planetismal.RandomPlanetismal;
+import static com.googlecode.totallylazy.Option.none;
+import static com.googlecode.totallylazy.Option.option;
+import static com.googlecode.totallylazy.Pair.pair;
 import static com.googlecode.totallylazy.Sequences.*;
 import static java.lang.Math.*;
 
@@ -111,91 +114,81 @@ public class Accrete {
    * the planetismal's mass.
    */
   Planetismal AccreteDust(final Planetismal nucleus) {
-    double new_mass = nucleus.mass;
-    do {
-      nucleus.mass = new_mass;
-      new_mass = dustBands.fold(0.0, new Callable2<Double, DustBand, Double>() {
-        @Override
-        public Double call(Double o, DustBand dustBand) throws Exception {
-          return o + CollectDust(nucleus, dustBand);
-        }
-      });
-    }
-    while ((new_mass - nucleus.mass) > (0.0001 * nucleus.mass));
-    nucleus.mass = new_mass;
-    return nucleus;
+    return unfoldRight(new Callable1<Planetismal, Option<? extends Pair<? extends Planetismal, ? extends Planetismal>>>() {
+      @Override
+      public Option<? extends Pair<? extends Planetismal, ? extends Planetismal>> call(final Planetismal tsml) throws Exception {
+        double new_mass = dustBands.fold(0.0, new Callable2<Double, DustBand, Double>() {
+          @Override
+          public Double call(Double total, DustBand dustBand) throws Exception {
+            return total + CollectDust(dustBand, tsml);
+          }
+        });
+        if (new_mass - tsml.mass <= 0.001 * new_mass) return none();
+        Planetismal result = new Planetismal(tsml.star, tsml.axis, tsml.eccn, new_mass, tsml.gas_giant);
+        return option(pair(result, result));
+      }
+    }, nucleus).lastOption().getOrElse(nucleus);
   }
 
-  /**
-   * Returns the amount of dust and gas collected from the single
-   * dust band by the nucleus.  Returns 0.0 if no dust can be swept
-   * from the band
-   */
-  double CollectDust(Planetismal nucleus, DustBand band) {
-    double swept_inner = nucleus.InnerSweptLimit();
-    double swept_outer = nucleus.OuterSweptLimit();
-
-    if (swept_inner < 0.0) swept_inner = 0.0;
-    if (band.outer <= swept_inner || band.inner >= swept_outer) return 0.0;
+  double CollectDust(DustBand band, Planetismal nucleus) {
     if (!band.dust) return 0.0;
+
+    double swept_inner = max(0.0, nucleus.InnerSweptLimit());
+    double swept_outer = nucleus.OuterSweptLimit();
+    if (band.outer <= swept_inner || band.inner >= swept_outer) return 0.0;
 
     double dust_density = nucleus.DustDensity();
     double crit_mass = nucleus.CriticalMass();
     double mass_density = MassDensity(dust_density, crit_mass, nucleus.mass);
-    double density = (!band.gas || nucleus.mass < crit_mass) ? dust_density : mass_density;
+    double density = !band.gas || nucleus.mass < crit_mass ? dust_density : mass_density;
 
     double swept_width = swept_outer - swept_inner;
     double outside = max(swept_outer - band.outer, 0);
     double inside = max(band.inner - swept_inner, 0);
-
     double width = swept_width - outside - inside;
-    double term1 = 4.0 * PI * nucleus.axis * nucleus.axis;
+
+    double term1 = 4.0 * PI * pow(nucleus.axis, 2);
     double term2 = 1.0 - nucleus.eccn * (outside - inside) / swept_width;
     double volume = term1 * nucleus.ReducedMargin() * width * term2;
 
     return volume * density;
-
   }
 
   private void UpdateDustLanes(final Planetismal tsml) {
     dustBands = flatten(dustBands.map(new Function1<DustBand, Sequence<DustBand>>() {
       @Override
       public Sequence<DustBand> call(DustBand curr) throws Exception {
-        return CalculateBand(curr, tsml);
+        double min = tsml.InnerSweptLimit();
+        double max = tsml.OuterSweptLimit();
+        boolean new_gas = curr.gas && !tsml.gas_giant;
+
+        // Current is...
+        // Case 1: Wider
+        if (curr.inner < min && curr.outer > max) {
+          return sequence(
+            new DustBand(curr.inner, min, curr.dust, curr.gas),
+            new DustBand(min, max, false, new_gas),
+            new DustBand(max, curr.outer, curr.dust, curr.gas));
+        }
+        // Case 2: Outer
+        else if (curr.inner < max && curr.outer > max) {
+          return sequence(
+            new DustBand(curr.inner, max, false, new_gas),
+            new DustBand(max, curr.outer, curr.dust, curr.gas));
+        }
+        // Case 3: Inner
+        else if (curr.inner < min && curr.outer > min) {
+          return sequence(
+            new DustBand(curr.inner, min, curr.dust, curr.gas),
+            new DustBand(min, curr.outer, false, new_gas));
+        }
+        // Case 4: Narrower
+        else if (curr.inner >= min && curr.outer <= max) {
+          return sequence(new DustBand(curr.inner, curr.outer, false, new_gas));
+        }
+        return sequence(curr);
       }
     }));
-  }
-
-  private Sequence<DustBand> CalculateBand(DustBand curr, Planetismal tsml) {
-    double min = tsml.InnerSweptLimit();
-    double max = tsml.OuterSweptLimit();
-    boolean new_gas = curr.gas && !tsml.gas_giant;
-
-    // Current is...
-    // Case 1: Wider
-    if (curr.inner < min && curr.outer > max) {
-      return sequence(
-        new DustBand(curr.inner, min, curr.dust, curr.gas),
-        new DustBand(min, max, false, new_gas),
-        new DustBand(max, curr.outer, curr.dust, curr.gas));
-    }
-    // Case 2: Outer
-    else if (curr.inner < max && curr.outer > max) {
-      return sequence(
-        new DustBand(curr.inner, max, false, new_gas),
-        new DustBand(max, curr.outer, curr.dust, curr.gas));
-    }
-    // Case 3: Inner
-    else if (curr.inner < min && curr.outer > min) {
-      return sequence(
-        new DustBand(curr.inner, min, curr.dust, curr.gas),
-        new DustBand(min, curr.outer, false, new_gas));
-    }
-    // Case 4: Narrower
-    else if (curr.inner >= min && curr.outer <= max) {
-      return sequence(new DustBand(curr.inner, curr.outer, false, new_gas));
-    }
-    return sequence(curr);
   }
 
   /**
