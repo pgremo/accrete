@@ -32,21 +32,15 @@
 
 package accrete;
 
-import com.googlecode.totallylazy.Callable2;
-import com.googlecode.totallylazy.Function1;
-import com.googlecode.totallylazy.Predicate;
-import com.googlecode.totallylazy.Sequence;
+import com.googlecode.totallylazy.*;
 
 import java.util.Comparator;
 import java.util.Iterator;
-import java.util.Set;
-import java.util.TreeSet;
 
 import static accrete.DoleParams.*;
 import static accrete.Planetismal.PROTOPLANET_MASS;
 import static accrete.Planetismal.RandomPlanetismal;
-import static com.googlecode.totallylazy.Sequences.flatten;
-import static com.googlecode.totallylazy.Sequences.sequence;
+import static com.googlecode.totallylazy.Sequences.*;
 import static java.lang.Math.*;
 
 /**
@@ -57,6 +51,12 @@ import static java.lang.Math.*;
  */
 public class Accrete {
 
+  public static final Comparator<Planetismal> planetismalComparator = new Comparator<Planetismal>() {
+    @Override
+    public int compare(Planetismal o1, Planetismal o2) {
+      return Double.valueOf(o1.axis).compareTo(o2.axis);
+    }
+  };
   private Star star;
   double inner_bound, outer_bound;    // in AU
   double inner_dust, outer_dust;      // in AU
@@ -78,13 +78,7 @@ public class Accrete {
     outer_dust = OuterDustLimit(star.stellar_mass);
   }
 
-  Sequence<DustBand> dust_head = null;          // head of the list of dust bands
-  Set<Planetismal> planets = new TreeSet<>(new Comparator<Planetismal>() {
-    @Override
-    public int compare(Planetismal o1, Planetismal o2) {
-      return Double.valueOf(o1.axis).compareTo(o2.axis);
-    }
-  });
+  Sequence<DustBand> dustBands = null;          // head of the list of dust bands
 
   /**
    * This function does the main work of creating the planets.  It
@@ -93,8 +87,9 @@ public class Accrete {
    *
    * @return Vector containing all of the planets written out.
    */
-  public Iterable<Planetismal> DistributePlanets() {
-    dust_head = sequence(new DustBand(inner_dust, outer_dust));
+  public Sequence<Planetismal> DistributePlanets() {
+    dustBands = sequence(new DustBand(inner_dust, outer_dust));
+    Sequence<Planetismal> planets = empty(Planetismal.class);
 
     while (CheckDustLeft()) {
       Planetismal tsml = RandomPlanetismal(star, inner_bound, outer_bound);
@@ -103,7 +98,7 @@ public class Accrete {
       tsml.gas_giant = tsml.mass >= tsml.CriticalMass();
       UpdateDustLanes(tsml);
       CompressDustLanes();
-      if (!CoalescePlanetismals(tsml)) planets.add(tsml);
+      planets = CoalescePlanetismals(planets, tsml);
     }
 
     return planets;
@@ -119,7 +114,7 @@ public class Accrete {
     double new_mass = nucleus.mass;
     do {
       nucleus.mass = new_mass;
-      new_mass = dust_head.fold(0.0, new Callable2<Double, DustBand, Double>() {
+      new_mass = dustBands.fold(0.0, new Callable2<Double, DustBand, Double>() {
         @Override
         public Double call(Double o, DustBand dustBand) throws Exception {
           return o + CollectDust(nucleus, dustBand);
@@ -163,15 +158,19 @@ public class Accrete {
   }
 
   private void UpdateDustLanes(final Planetismal tsml) {
-    dust_head = flatten(dust_head.map(new Function1<DustBand, Sequence<DustBand>>() {
+    dustBands = flatten(dustBands.map(new Function1<DustBand, Sequence<DustBand>>() {
       @Override
       public Sequence<DustBand> call(DustBand curr) throws Exception {
-        return CalculateBand(curr, tsml.InnerSweptLimit(), tsml.OuterSweptLimit(), curr.gas && !tsml.gas_giant);
+        return CalculateBand(curr, tsml);
       }
     }));
   }
 
-  private Sequence<DustBand> CalculateBand(DustBand curr, double min, double max, boolean new_gas) {
+  private Sequence<DustBand> CalculateBand(DustBand curr, Planetismal tsml) {
+    double min = tsml.InnerSweptLimit();
+    double max = tsml.OuterSweptLimit();
+    boolean new_gas = curr.gas && !tsml.gas_giant;
+
     // Current is...
     // Case 1: Wider
     if (curr.inner < min && curr.outer > max) {
@@ -203,12 +202,10 @@ public class Accrete {
    * Compresses adjacent lanes that have the same status.
    */
   void CompressDustLanes() {
-    Sequence<DustBand> new_bands = sequence();
-
-    Iterator<DustBand> bands = dust_head.iterator();
+    Iterator<DustBand> bands = dustBands.iterator();
     if (!bands.hasNext()) return;
     DustBand curr = bands.next();
-    new_bands = new_bands.add(curr);
+    Sequence<DustBand> new_bands = sequence(curr);
 
     while (bands.hasNext()) {
       DustBand next = bands.next();
@@ -219,7 +216,7 @@ public class Accrete {
       curr.outer = next.outer;
     }
 
-    dust_head = new_bands;
+    dustBands = new_bands;
   }
 
   /**
@@ -227,7 +224,7 @@ public class Accrete {
    * bounds where planets can form.
    */
   boolean CheckDustLeft() {
-    return dust_head.exists(new Predicate<DustBand>() {
+    return dustBands.exists(new Predicate<DustBand>() {
       @Override
       public boolean matches(DustBand curr) {
         return curr.dust && curr.outer >= inner_bound && curr.inner <= outer_bound;
@@ -240,53 +237,48 @@ public class Accrete {
    * new planetismal.  If there is an overlap their effect radii,
    * the two planets are coalesced into one.
    */
-  boolean CoalescePlanetismals(Planetismal tsml) {
-    for (Planetismal curr : planets) {
-      double dist = curr.axis - tsml.axis;
-      double dist1, dist2;
-      if (dist > 0.0) {
-        dist1 = tsml.OuterEffectLimit() - tsml.axis;
-        dist2 = curr.axis - curr.InnerEffectLimit();
-      } else {
-        dist1 = tsml.axis - tsml.InnerEffectLimit();
-        dist2 = curr.OuterEffectLimit() - curr.axis;
+  Sequence<Planetismal> CoalescePlanetismals(Sequence<Planetismal> planets, final Planetismal tsml) {
+    Pair<Sequence<Planetismal>, Sequence<Planetismal>> divided = planets.sortBy(planetismalComparator).breakOn(new Predicate<Planetismal>() {
+      @Override
+      public boolean matches(Planetismal curr) {
+        double dist = curr.axis - tsml.axis;
+        double dist1, dist2;
+        if (dist > 0.0) {
+          dist1 = tsml.OuterEffectLimit() - tsml.axis;
+          dist2 = curr.axis - curr.InnerEffectLimit();
+        } else {
+          dist1 = tsml.axis - tsml.InnerEffectLimit();
+          dist2 = curr.OuterEffectLimit() - curr.axis;
+        }
+
+        return abs(dist) <= dist1 || abs(dist) <= dist2;
       }
+    });
 
-      if ((abs(dist) <= dist1) || (abs(dist) <= dist2)) {
-        CoalesceTwoPlanets(curr, tsml);
-        return true;
+    Sequence<Planetismal> previous = divided.first();
+    Option<Planetismal> target = divided.second().headOption();
+    Sequence<Planetismal> next = divided.second().size() < 2 ? empty(Planetismal.class) : divided.second().tail();
+
+    Planetismal value = (Planetismal) target.map(new Function1<Planetismal, Planetismal>() {
+      @Override
+      public Planetismal call(Planetismal curr) throws Exception {
+        double new_mass = curr.mass + tsml.mass;
+        double new_axis = new_mass / ((curr.mass / curr.axis) + (tsml.mass / tsml.axis));
+        double term1 = curr.mass * sqrt(curr.axis * (1.0 - curr.eccn * curr.eccn));
+        double term2 = tsml.mass * sqrt(tsml.axis * (1.0 - tsml.eccn * tsml.eccn));
+        double term3 = (term1 + term2) / (new_mass * sqrt(new_axis));
+        double term4 = 1.0 - term3 * term3;
+        double new_eccn = sqrt(abs(term4));
+
+        return new Planetismal(star, new_axis, new_eccn, new_mass, curr.gas_giant || tsml.gas_giant);
       }
-    }
-    return false;
-  }
+    }).toEither(tsml).value();
 
-  /**
-   * Coalesces two planet together.  The resulting planet is saved
-   * back into the first one (which is assumed to be the one present
-   * in the planet list).
-   */
-  void CoalesceTwoPlanets(Planetismal a, Planetismal b) {
-    double new_mass = a.mass + b.mass;
-    double new_axis = new_mass / ((a.mass / a.axis) + (b.mass / b.axis));
-    double term1 = a.mass * sqrt(a.axis * (1.0 - a.eccn * a.eccn));
-    double term2 = b.mass * sqrt(b.axis * (1.0 - b.eccn * b.eccn));
-    double term3 = (term1 + term2) / (new_mass * sqrt(new_axis));
-    double term4 = 1.0 - term3 * term3;
-    double new_eccn = sqrt(abs(term4));
-    a.mass = new_mass;
-    a.axis = new_axis;
-    a.eccn = new_eccn;
-    a.gas_giant = a.gas_giant || b.gas_giant;
-  }
-
-  public static void PrintPlanets(Iterable<Planetismal> planets) {
-    for (Planetismal planet : planets) {
-      System.out.println(planet);
-    }
+    return flatten(sequence(previous, sequence(value), next));
   }
 
   public static void main(String[] args) {
-    PrintPlanets(new Accrete().DistributePlanets());
+    System.out.println(new Accrete().DistributePlanets().sortBy(planetismalComparator).toString("\n"));
   }
 
 }
