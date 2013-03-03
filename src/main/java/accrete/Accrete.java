@@ -40,10 +40,12 @@ import java.util.Iterator;
 import static accrete.DoleParams.*;
 import static accrete.Planetismal.PROTOPLANET_MASS;
 import static accrete.Planetismal.RandomPlanetismal;
+import static com.googlecode.totallylazy.Callables.curry;
 import static com.googlecode.totallylazy.Option.none;
 import static com.googlecode.totallylazy.Option.option;
 import static com.googlecode.totallylazy.Pair.pair;
 import static com.googlecode.totallylazy.Sequences.*;
+import static com.googlecode.totallylazy.numbers.Numbers.add;
 import static java.lang.Math.*;
 
 /**
@@ -58,6 +60,66 @@ public class Accrete {
     @Override
     public int compare(Planetismal o1, Planetismal o2) {
       return Double.valueOf(o1.axis).compareTo(o2.axis);
+    }
+  };
+  public static final Callable2<Planetismal, DustBand, Sequence<DustBand>> dustExpansion = new Callable2<Planetismal, DustBand, Sequence<DustBand>>() {
+    @Override
+    public Sequence<DustBand> call(Planetismal tsml, DustBand curr) throws Exception {
+      double min = tsml.InnerSweptLimit();
+      double max = tsml.OuterSweptLimit();
+      boolean new_gas = curr.gas && !tsml.gas_giant;
+
+      // Current is...
+      // Case 1: Wider
+      if (curr.inner < min && curr.outer > max) {
+        return sequence(
+          new DustBand(curr.inner, min, curr.dust, curr.gas),
+          new DustBand(min, max, false, new_gas),
+          new DustBand(max, curr.outer, curr.dust, curr.gas));
+      }
+      // Case 2: Outer
+      else if (curr.inner < max && curr.outer > max) {
+        return sequence(
+          new DustBand(curr.inner, max, false, new_gas),
+          new DustBand(max, curr.outer, curr.dust, curr.gas));
+      }
+      // Case 3: Inner
+      else if (curr.inner < min && curr.outer > min) {
+        return sequence(
+          new DustBand(curr.inner, min, curr.dust, curr.gas),
+          new DustBand(min, curr.outer, false, new_gas));
+      }
+      // Case 4: Narrower
+      else if (curr.inner >= min && curr.outer <= max) {
+        return sequence(new DustBand(curr.inner, curr.outer, false, new_gas));
+      }
+      return sequence(curr);
+    }
+  };
+  public static final Callable2<Planetismal, DustBand, Double> collectDust = new Callable2<Planetismal, DustBand, Double>() {
+    @Override
+    public Double call(Planetismal tsml, DustBand dustBand) throws Exception {
+      if (!dustBand.dust) return 0.0;
+
+      double swept_inner = max(0.0, tsml.InnerSweptLimit());
+      double swept_outer = tsml.OuterSweptLimit();
+      if (dustBand.outer <= swept_inner || dustBand.inner >= swept_outer) return 0.0;
+
+      double dust_density = tsml.DustDensity();
+      double crit_mass = tsml.CriticalMass();
+      double mass_density = MassDensity(dust_density, crit_mass, tsml.mass);
+      double density = !dustBand.gas || tsml.mass < crit_mass ? dust_density : mass_density;
+
+      double swept_width = swept_outer - swept_inner;
+      double outside = max(swept_outer - dustBand.outer, 0);
+      double inside = max(dustBand.inner - swept_inner, 0);
+      double width = swept_width - outside - inside;
+
+      double term1 = 4.0 * PI * pow(tsml.axis, 2);
+      double term2 = 1.0 - tsml.eccn * (outside - inside) / swept_width;
+      double volume = term1 * tsml.ReducedMargin() * width * term2;
+
+      return volume * density;
     }
   };
   private Star star;
@@ -81,7 +143,6 @@ public class Accrete {
     outer_dust = OuterDustLimit(star.stellar_mass);
   }
 
-  Sequence<DustBand> dustBands = null;          // head of the list of dust bands
 
   /**
    * This function does the main work of creating the planets.  It
@@ -91,16 +152,16 @@ public class Accrete {
    * @return Vector containing all of the planets written out.
    */
   public Sequence<Planetismal> DistributePlanets() {
-    dustBands = sequence(new DustBand(inner_dust, outer_dust));
+    Sequence<DustBand> dustBands = sequence(new DustBand(inner_dust, outer_dust));
     Sequence<Planetismal> planets = empty(Planetismal.class);
 
-    while (CheckDustLeft()) {
+    while (CheckDustLeft(dustBands)) {
       Planetismal tsml = RandomPlanetismal(star, inner_bound, outer_bound);
-      tsml = AccreteDust(tsml);
+      tsml = AccreteDust(dustBands, tsml);
       if (tsml.mass == 0.0 || tsml.mass == PROTOPLANET_MASS) continue;
       tsml.gas_giant = tsml.mass >= tsml.CriticalMass();
-      UpdateDustLanes(tsml);
-      CompressDustLanes();
+      dustBands = UpdateDustLanes(dustBands, tsml);
+      dustBands = CompressDustLanes(dustBands);
       planets = CoalescePlanetismals(planets, tsml);
     }
 
@@ -113,90 +174,30 @@ public class Accrete {
    * more.  Returns the new mass for the planetismal; also changes
    * the planetismal's mass.
    */
-  Planetismal AccreteDust(final Planetismal nucleus) {
-    return unfoldRight(new Callable1<Planetismal, Option<? extends Pair<? extends Planetismal, ? extends Planetismal>>>() {
+  Planetismal AccreteDust(Sequence<DustBand> dustBands, Planetismal nucleus) {
+    return unfoldRight(curry(new Callable2<Sequence<DustBand>, Planetismal, Option<? extends Pair<? extends Planetismal, ? extends Planetismal>>>() {
       @Override
-      public Option<? extends Pair<? extends Planetismal, ? extends Planetismal>> call(final Planetismal tsml) throws Exception {
-        double new_mass = dustBands.fold(0.0, new Callable2<Double, DustBand, Double>() {
-          @Override
-          public Double call(Double total, DustBand dustBand) throws Exception {
-            return total + CollectDust(dustBand, tsml);
-          }
-        });
+      public Option<? extends Pair<? extends Planetismal, ? extends Planetismal>> call(Sequence<DustBand> dustBands, Planetismal tsml) throws Exception {
+        double new_mass = dustBands.map(curry(collectDust).apply(tsml)).reduce(add).doubleValue();
         if (new_mass - tsml.mass <= 0.001 * new_mass) return none();
         Planetismal result = new Planetismal(tsml.star, tsml.axis, tsml.eccn, new_mass, tsml.gas_giant);
         return option(pair(result, result));
       }
-    }, nucleus).lastOption().getOrElse(nucleus);
+    }).apply(dustBands), nucleus).lastOption().getOrElse(nucleus);
   }
 
-  double CollectDust(DustBand band, Planetismal nucleus) {
-    if (!band.dust) return 0.0;
-
-    double swept_inner = max(0.0, nucleus.InnerSweptLimit());
-    double swept_outer = nucleus.OuterSweptLimit();
-    if (band.outer <= swept_inner || band.inner >= swept_outer) return 0.0;
-
-    double dust_density = nucleus.DustDensity();
-    double crit_mass = nucleus.CriticalMass();
-    double mass_density = MassDensity(dust_density, crit_mass, nucleus.mass);
-    double density = !band.gas || nucleus.mass < crit_mass ? dust_density : mass_density;
-
-    double swept_width = swept_outer - swept_inner;
-    double outside = max(swept_outer - band.outer, 0);
-    double inside = max(band.inner - swept_inner, 0);
-    double width = swept_width - outside - inside;
-
-    double term1 = 4.0 * PI * pow(nucleus.axis, 2);
-    double term2 = 1.0 - nucleus.eccn * (outside - inside) / swept_width;
-    double volume = term1 * nucleus.ReducedMargin() * width * term2;
-
-    return volume * density;
-  }
-
-  private void UpdateDustLanes(final Planetismal tsml) {
-    dustBands = flatten(dustBands.map(new Function1<DustBand, Sequence<DustBand>>() {
-      @Override
-      public Sequence<DustBand> call(DustBand curr) throws Exception {
-        double min = tsml.InnerSweptLimit();
-        double max = tsml.OuterSweptLimit();
-        boolean new_gas = curr.gas && !tsml.gas_giant;
-
-        // Current is...
-        // Case 1: Wider
-        if (curr.inner < min && curr.outer > max) {
-          return sequence(
-            new DustBand(curr.inner, min, curr.dust, curr.gas),
-            new DustBand(min, max, false, new_gas),
-            new DustBand(max, curr.outer, curr.dust, curr.gas));
-        }
-        // Case 2: Outer
-        else if (curr.inner < max && curr.outer > max) {
-          return sequence(
-            new DustBand(curr.inner, max, false, new_gas),
-            new DustBand(max, curr.outer, curr.dust, curr.gas));
-        }
-        // Case 3: Inner
-        else if (curr.inner < min && curr.outer > min) {
-          return sequence(
-            new DustBand(curr.inner, min, curr.dust, curr.gas),
-            new DustBand(min, curr.outer, false, new_gas));
-        }
-        // Case 4: Narrower
-        else if (curr.inner >= min && curr.outer <= max) {
-          return sequence(new DustBand(curr.inner, curr.outer, false, new_gas));
-        }
-        return sequence(curr);
-      }
-    }));
+  private Sequence<DustBand> UpdateDustLanes(Sequence<DustBand> dustBands, Planetismal tsml) {
+    return flatten(dustBands.map(curry(dustExpansion).apply(tsml)));
   }
 
   /**
    * Compresses adjacent lanes that have the same status.
+   *
+   * @param dustBands
    */
-  void CompressDustLanes() {
+  Sequence<DustBand> CompressDustLanes(Sequence<DustBand> dustBands) {
     Iterator<DustBand> bands = dustBands.iterator();
-    if (!bands.hasNext()) return;
+    if (!bands.hasNext()) return empty(DustBand.class);
     DustBand curr = bands.next();
     Sequence<DustBand> new_bands = sequence(curr);
 
@@ -209,14 +210,16 @@ public class Accrete {
       curr.outer = next.outer;
     }
 
-    dustBands = new_bands;
+    return new_bands;
   }
 
   /**
    * Checks if there is any dust remaining in any bands inside the
    * bounds where planets can form.
+   *
+   * @param dustBands
    */
-  boolean CheckDustLeft() {
+  boolean CheckDustLeft(Sequence<DustBand> dustBands) {
     return dustBands.exists(new Predicate<DustBand>() {
       @Override
       public boolean matches(DustBand curr) {
