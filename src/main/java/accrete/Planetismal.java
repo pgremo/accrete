@@ -70,8 +70,8 @@ public class Planetismal {
     gas_giant = giant;
   }
 
-  static Planetismal RandomPlanetismal(Star star, double inner, double outer) {
-    return new Planetismal(star, Random(inner, outer), RandomEccentricity());
+  static Planetismal RandomPlanetismal(Star star) {
+    return new Planetismal(star, Random(star.InnermostPlanet(), star.OutermostPlanet()), RandomEccentricity());
   }
 
   double ReducedMargin() {
