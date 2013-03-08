@@ -15,8 +15,9 @@ import java.util.Iterator;
 import java.util.Map;
 
 
-public class AppletFrame extends ExitableFrame
-  implements AppletStub, AppletContext {
+public class AppletFrame extends ExitableFrame implements AppletStub, AppletContext {
+
+  private static final long serialVersionUID = 211451763459888835L;
 
   public AppletFrame(Applet applet, int width, int height, String title) {
     super(title);

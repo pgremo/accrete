@@ -87,7 +87,7 @@ public class Planetismal {
   }
 
   double InnerSweptLimit() {
-    return DoleParams.InnerSweptLimit(axis, eccn, DoleParams.ReducedMargin(mass));
+    return max(DoleParams.InnerSweptLimit(axis, eccn, DoleParams.ReducedMargin(mass)), 0);
   }
 
   double OuterSweptLimit() {

@@ -11,7 +11,7 @@ public class Astro {
 
   public static final double SOLAR_MASS_GRAMS = 1.989e33;
   public static final double EARTH_MASS_GRAMS = 5.977e27;
-  public static final double SOLAR_MASS_EARTH_MASS = 332775.64;
+  public static final double SOLAR_MASS_EARTH_MASS = SOLAR_MASS_GRAMS / EARTH_MASS_GRAMS;
 
   public static final double EARTH_RADIUS_CM = 6.378e6;
   public static final double EARTH_RADIUS_KM = 6378.0;

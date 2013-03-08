@@ -13,6 +13,8 @@ import java.awt.event.WindowListener;
 
 public class ExitableFrame extends Frame implements WindowListener {
 
+  private static final long serialVersionUID = 3021523229948771306L;
+
   public ExitableFrame(String t) {
     super(t);
     addWindowListener(this);

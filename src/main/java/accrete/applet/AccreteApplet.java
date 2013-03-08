@@ -15,6 +15,7 @@ import static java.lang.Math.pow;
 
 public class AccreteApplet extends Applet implements MouseListener, Runnable {
 
+  private static final long serialVersionUID = -4942538670918341582L;
   private Accrete gen = null;
   private Iterable<Planetismal> planets = null;
 

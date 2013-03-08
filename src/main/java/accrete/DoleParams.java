@@ -7,6 +7,13 @@
 
 package accrete;
 
+import com.googlecode.totallylazy.Callable2;
+import com.googlecode.totallylazy.Callable3;
+
+import java.util.Random;
+
+import static com.googlecode.totallylazy.Callers.call;
+import static com.googlecode.totallylazy.Functions.apply;
 import static java.lang.Math.pow;
 import static java.lang.Math.sqrt;
 
@@ -27,7 +34,6 @@ class DoleParams {
   static double CriticalMass(double radius, double eccentricity, double luminosity) {
     return (B * pow(PerihelionDistance(radius, eccentricity) * sqrt(luminosity), -0.75));
   }
-
 
   static double PerihelionDistance(double radius, double eccentricity) {
     return radius * (1.0 - eccentricity);
@@ -80,20 +86,26 @@ class DoleParams {
     return K * dust_density / (1.0 + sqrt(critical_mass / mass) * (K - 1.0));
   }
 
-  static RandomScale gen = new RandomScale(11223344);
+  private static final Callable3<Random, Double, Double, Double> randomRange = new Callable3<Random, Double, Double, Double>() {
+    @Override
+    public Double call(Random random, Double min, Double max) throws Exception {
+      return random.nextDouble() * (max - min) + min;
+    }
+  };
+  private static Callable2<Double, Double, Double> withRandom = apply(randomRange, new Random(11223344));
 
-  static double Random() {
-    return gen.randomDouble();
+  public static double Random() {
+    return call(withRandom, (double) 0, (double) 1);
   }
 
-  static double Random(double low, double high) {
-    return gen.randomDouble(low, high);
+  public static double Random(double d, double d1) {
+    return call(withRandom, d, d1);
   }
 
   static final double ECCENTRICITY_COEFF = 0.077;
 
   static double RandomEccentricity() {
-    return (1.0 - pow(Random(), ECCENTRICITY_COEFF));
+    return 1.0 - pow(Random(), ECCENTRICITY_COEFF);
   }
 
   static double ScaleCubeRootMass(double scale, double mass) {
@@ -106,14 +118,6 @@ class DoleParams {
 
   static double OuterDustLimit(double stellar_mass) {
     return ScaleCubeRootMass(200.0, stellar_mass);
-  }
-
-  static double InnermostPlanet(double stellar_mass) {
-    return ScaleCubeRootMass(0.3, stellar_mass);
-  }
-
-  static double OutermostPlanet(double stellar_mass) {
-    return ScaleCubeRootMass(50.0, stellar_mass);
   }
 
 }

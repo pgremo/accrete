@@ -39,17 +39,15 @@ import java.util.Comparator;
 import static accrete.DoleParams.*;
 import static accrete.Planetismal.PROTOPLANET_MASS;
 import static accrete.Planetismal.RandomPlanetismal;
-import static com.googlecode.totallylazy.Callables.curry;
-import static com.googlecode.totallylazy.Callers.call;
+import static accrete.Sequences.*;
+import static com.googlecode.totallylazy.Functions.apply;
 import static com.googlecode.totallylazy.Option.none;
 import static com.googlecode.totallylazy.Option.option;
 import static com.googlecode.totallylazy.Pair.pair;
 import static com.googlecode.totallylazy.Predicates.and;
 import static com.googlecode.totallylazy.Predicates.predicate;
-import static com.googlecode.totallylazy.Sequences.*;
 import static com.googlecode.totallylazy.numbers.Numbers.add;
 import static java.lang.Math.*;
-import static java.util.Arrays.asList;
 
 public class Accrete {
 
@@ -96,9 +94,7 @@ public class Accrete {
   public static final Callable2<Planetismal, DustBand, Double> collectDust = new Callable2<Planetismal, DustBand, Double>() {
     @Override
     public Double call(Planetismal tsml, DustBand dustBand) throws Exception {
-      if (!dustBand.dust) return 0.0;
-
-      double swept_inner = max(0.0, tsml.InnerSweptLimit());
+      double swept_inner = tsml.InnerSweptLimit();
       double swept_outer = tsml.OuterSweptLimit();
       if (dustBand.outer <= swept_inner || dustBand.inner >= swept_outer) return 0.0;
 
@@ -122,14 +118,14 @@ public class Accrete {
   public static final Callable2<Sequence<DustBand>, Planetismal, Option<? extends Pair<? extends Planetismal, ? extends Planetismal>>> massAccretion = new Callable2<Sequence<DustBand>, Planetismal, Option<? extends Pair<? extends Planetismal, ? extends Planetismal>>>() {
     @Override
     public Option<? extends Pair<? extends Planetismal, ? extends Planetismal>> call(Sequence<DustBand> dustBands, Planetismal tsml) throws Exception {
-      double new_mass = dustBands.map(curry(collectDust).apply(tsml)).reduce(add).doubleValue();
+      double new_mass = dustBands.filter(bandHasDust).map(apply(collectDust, tsml)).reduce(add).doubleValue();
       if (new_mass - tsml.mass <= 0.001 * new_mass) return none();
       Planetismal result = new Planetismal(tsml.star, tsml.axis, tsml.eccn, new_mass, tsml.gas_giant);
       result.gas_giant = tsml.mass >= tsml.CriticalMass();
       return option(pair(result, result));
     }
   };
-  public static final Callable2<Planetismal, Planetismal, Object> coalesce = new Callable2<Planetismal, Planetismal, Object>() {
+  public static final Callable2<Planetismal, Planetismal, Planetismal> coalesce = new Callable2<Planetismal, Planetismal, Planetismal>() {
     @Override
     public Planetismal call(Planetismal tsml, Planetismal curr) throws Exception {
       double new_mass = curr.mass + tsml.mass;
@@ -167,9 +163,9 @@ public class Accrete {
       return new DustBand(first.inner, last.outer, first.dust, first.gas);
     }
   };
-  public static final Callable1<DustBand, Comparable> memoizeBand = new Callable1<DustBand, Comparable>() {
+  public static final Callable1<DustBand, Integer> memoizeBand = new Callable1<DustBand, Integer>() {
     @Override
-    public Comparable call(DustBand o) throws Exception {
+    public Integer call(DustBand o) throws Exception {
       return (o.dust ? 10 : 0) + (o.gas ? 1 : 0);
     }
   };
@@ -186,75 +182,52 @@ public class Accrete {
     }
   };
 
-  private Star star;
-
-  public Accrete() {
-    this(new Star(1.0, 1.0));
-  }
-
-  public Accrete(Star star) {
-    this.star = star;
-  }
-
   public Sequence<Planetismal> DistributePlanets() {
+    Star star = new Star(1.0, 1.0);
     Sequence<DustBand> dustBands = sequence(new DustBand(InnerDustLimit(), OuterDustLimit(star.stellar_mass)));
     Sequence<Planetismal> planets = empty(Planetismal.class);
 
-    while (CheckDustLeft(dustBands)) {
+    while (CheckDustLeft(dustBands, star)) {
       Planetismal tsml = AccreteDust(dustBands, RandomPlanetismal(star));
-      if (tsml.mass == 0.0 || tsml.mass == PROTOPLANET_MASS) continue;
+      if (sequence(0.0, PROTOPLANET_MASS).contains(tsml.mass)) continue;
+      planets = CoalescePlanetismals(planets, tsml);
       dustBands = UpdateDustLanes(dustBands, tsml);
       dustBands = CompressDustLanes(dustBands);
-      planets = CoalescePlanetismals(planets, tsml);
     }
 
     return planets;
   }
 
+  private boolean CheckDustLeft(Sequence<DustBand> dustBands, Star star) {
+    return dustBands.exists(and(bandHasDust, predicate(apply(bandIsInBounds, star))));
+  }
+
   private Planetismal AccreteDust(Sequence<DustBand> dustBands, Planetismal nucleus) {
-    return unfoldRight(curry(massAccretion).apply(dustBands), nucleus).lastOption().getOrElse(nucleus);
+    return unfoldRight(apply(massAccretion, dustBands), nucleus).lastOption().getOrElse(nucleus);
   }
 
   private Sequence<DustBand> UpdateDustLanes(Sequence<DustBand> dustBands, Planetismal tsml) {
-    return flatten(dustBands.map(curry(dustExpansion).apply(tsml)));
+    return flatten(dustBands.map(apply(dustExpansion, tsml)));
   }
 
   private Sequence<DustBand> CompressDustLanes(Sequence<DustBand> dustBands) {
-    return partitionBy(memoizeBand, dustBands).map(compressBand);
+    return Sequences.partitionBy(memoizeBand, dustBands).map(compressBand);
   }
 
-  private boolean CheckDustLeft(Sequence<DustBand> dustBands) {
-    return dustBands.exists(and(bandHasDust, predicate(curry(bandIsInBounds).apply(star))));
-  }
-
-  private Sequence<Planetismal> CoalescePlanetismals(Sequence<Planetismal> planets, final Planetismal tsml) {
-    Pair<Sequence<Planetismal>, Sequence<Planetismal>> divided = planets.sortBy(axisComparator).breakOn(predicate(curry(tooClose).apply(tsml)));
+  private Sequence<Planetismal> CoalescePlanetismals(Sequence<Planetismal> planets, Planetismal tsml) {
+    Pair<Sequence<Planetismal>, Sequence<Planetismal>> divided = planets.sortBy(axisComparator).breakOn(predicate(apply(tooClose, tsml)));
 
     Sequence<Planetismal> previous = divided.first();
-    Option<Planetismal> target = divided.second().headOption();
-    Sequence<Planetismal> next = divided.second().size() < 2 ? empty(Planetismal.class) : divided.second().tail();
+    Option<Planetismal> target = headOption(divided.second());
+    Sequence<Planetismal> next = tail(divided.second());
 
-    Planetismal value = (Planetismal) target.map(curry(coalesce).apply(tsml)).getOrElse(tsml);
+    Planetismal value = target.map(apply(coalesce, tsml)).getOrElse(tsml);
 
     return previous.join(sequence(value)).join(next);
   }
 
-  public static <T, K extends Comparable<? super K>> Sequence<Sequence<T>> partitionBy(final Callable1<T, K> f, Sequence<T> coll) {
-    if (coll.size() < 2) return sequence(asList(coll));
-    T fst = coll.first();
-    final K fv = call(f, fst);
-    Pair<Sequence<T>, Sequence<T>> result = coll.tail().span(new Predicate<T>() {
-      @Override
-      public boolean matches(T other) {
-        return call(f, other).compareTo(fv) == 0;
-      }
-    });
-    return cons(cons(fst, result.first()), partitionBy(f, result.second()));
-  }
-
-  public static void main(String[] args) {
+  public static void main(String... args) {
     System.out.println(new Accrete().DistributePlanets().sortBy(axisComparator).toString("\n"));
   }
-
 }
 
