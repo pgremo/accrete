@@ -1,35 +1,3 @@
-
-// Author: Ian Burrell  <iburrell@leland.stanford.edu>
-// Created: 1997/01/14
-// Modified: 1997/02/09
-
-// Copyright 1997 Ian Burrell
-
-/*
- *
- * Simulates the creation of planetary systems using the Dole
- * accretion model.
- *
- * This program simulates the creation of a planetary system by
- * accretion of planetismals.  Individual planets sweep out dust and
- * gas until all of the dust is swept up.  Planets whose orbits are
- * close are coalesced.
- *
- * See http://www-leland.stanford.edu/~iburrell/create/accrete.html
- * for more history of this model and programs.
- *
- * References:
- *      Dole, Stephen H.  "Computer Simulation of the Formation of
- *          Planetary Systems."  _Icarus_.  13 (1970), pg 494-508.
- *      Isaacman & Sagan.  "Computer Simulations of Planetary Accretion
- *          Dynamics."  _Icarus_.  31 (1997), pg 510-533.
- *      Fogg, Martyn J.  "Extra-Solar Planetary Systems: A Microcomputer
- *          Simulation".  Journal of the British Interplanetary
- *          Society, vol 38, 501-514, 1985.
- *
- *
- */
-
 package accrete;
 
 import com.googlecode.totallylazy.*;
@@ -39,13 +7,14 @@ import java.util.Comparator;
 import static accrete.DoleParams.*;
 import static accrete.Planetismal.PROTOPLANET_MASS;
 import static accrete.Planetismal.RandomPlanetismal;
-import static accrete.Sequences.*;
+import static accrete.Sequences.partitionBy;
 import static com.googlecode.totallylazy.Functions.apply;
 import static com.googlecode.totallylazy.Option.none;
 import static com.googlecode.totallylazy.Option.option;
 import static com.googlecode.totallylazy.Pair.pair;
 import static com.googlecode.totallylazy.Predicates.and;
 import static com.googlecode.totallylazy.Predicates.predicate;
+import static com.googlecode.totallylazy.Sequences.*;
 import static com.googlecode.totallylazy.numbers.Numbers.add;
 import static java.lang.Math.*;
 
@@ -199,7 +168,7 @@ public class Accrete {
   }
 
   private boolean CheckDustLeft(Sequence<DustBand> dustBands, Star star) {
-    return dustBands.exists(and(bandHasDust, predicate(apply(bandIsInBounds, star))));
+    return exists(dustBands, and(bandHasDust, predicate(apply(bandIsInBounds, star))));
   }
 
   private Planetismal AccreteDust(Sequence<DustBand> dustBands, Planetismal nucleus) {
@@ -207,23 +176,21 @@ public class Accrete {
   }
 
   private Sequence<DustBand> UpdateDustLanes(Sequence<DustBand> dustBands, Planetismal tsml) {
-    return flatten(dustBands.map(apply(dustExpansion, tsml)));
+    return flatten(map(dustBands, apply(dustExpansion, tsml)));
   }
 
   private Sequence<DustBand> CompressDustLanes(Sequence<DustBand> dustBands) {
-    return Sequences.partitionBy(memoizeBand, dustBands).map(compressBand);
+    return map(partitionBy(memoizeBand, dustBands).toList(), compressBand);
   }
 
   private Sequence<Planetismal> CoalescePlanetismals(Sequence<Planetismal> planets, Planetismal tsml) {
-    Pair<Sequence<Planetismal>, Sequence<Planetismal>> divided = planets.sortBy(axisComparator).breakOn(predicate(apply(tooClose, tsml)));
+    Pair<Sequence<Planetismal>, Sequence<Planetismal>> divided = sortBy(planets, axisComparator).breakOn(predicate(apply(tooClose, tsml)));
 
     Sequence<Planetismal> previous = divided.first();
-    Option<Planetismal> target = headOption(divided.second());
-    Sequence<Planetismal> next = tail(divided.second());
+    Sequence<Planetismal> value = sequence(headOption(divided.second()).map(apply(coalesce, tsml)).getOrElse(tsml));
+    Sequence<Planetismal> next = divided.second().splitAt(1).second();
 
-    Planetismal value = target.map(apply(coalesce, tsml)).getOrElse(tsml);
-
-    return previous.join(sequence(value)).join(next);
+    return previous.join(value).join(next);
   }
 
   public static void main(String... args) {

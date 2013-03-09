@@ -16,7 +16,7 @@ repositories {
 }
 
 dependencies {
-  compile 'com.googlecode.totallylazy:totallylazy:1042'
+  compile 'com.googlecode.totallylazy:totallylazy:1049'
   testCompile 'junit:junit:4.11'
 }
 
