@@ -7,8 +7,6 @@
 
 package accrete;
 
-import static java.lang.String.format;
-
 /**
  * Stores the data for a band of dust of gas.  Contains the inner and
  * outer edge, and whether it has dust or gas present.  Has a pointer
@@ -17,29 +15,12 @@ import static java.lang.String.format;
  * The list of DustBands is maintained by the Accrete class; the
  * internals are exposed for manipulation.
  */
-class DustBand {
-
-  double inner;       // inner edge (in AU)
-  double outer;       // outer edge (in AU)
-  boolean dust;       // dust present
-  boolean gas;        // gas present
-
-  DustBand(double inner_limit, double outer_limit) {
-    this(inner_limit, outer_limit, true, true);
-  }
-
-  DustBand(double inner_limit, double outer_limit,
-           boolean dust_present, boolean gas_present) {
-    inner = inner_limit;
-    outer = outer_limit;
-    dust = dust_present;
-    gas = gas_present;
-  }
-
-  public String toString() {
-    return format("%s %s %s %s", inner, outer, dust, gas);
-  }
-
+public record DustBand(
+        double inner,
+        double outer,
+        boolean dust,
+        boolean gas
+) {
 }
 
 

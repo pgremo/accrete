@@ -1,12 +1,13 @@
 package accrete.applet;
 
 import accrete.Accrete;
-import accrete.Planetismal;
+import accrete.Planetesimal;
 
 import java.applet.Applet;
 import java.awt.*;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
+import java.util.Random;
 
 import static java.awt.Color.black;
 import static java.awt.Color.white;
@@ -17,7 +18,7 @@ public class AccreteApplet extends Applet implements MouseListener, Runnable {
 
   private static final long serialVersionUID = -4942538670918341582L;
   private Accrete gen = null;
-  private Iterable<Planetismal> planets = null;
+  private Iterable<Planetesimal> planets = null;
 
   public void init() {
     setBackground(white);
@@ -31,7 +32,7 @@ public class AccreteApplet extends Applet implements MouseListener, Runnable {
   }
 
   public void run() {
-    planets = gen.DistributePlanets();
+    planets = gen.DistributePlanets(new Random());
     repaint();
   }
 
@@ -71,14 +72,14 @@ public class AccreteApplet extends Applet implements MouseListener, Runnable {
     int vscale = vscale();
     int rscale = hscale / 30;
 
-    for (Planetismal curr : planets) {
-      double au = log10(curr.getOrbitalAxis());
+    for (Planetesimal curr : planets) {
+      double au = log10(curr.axis());
       double rad = pow(curr.getMassEarth(), 1.0 / 3.0);
       int r = (int) (rad * (double) rscale);
       int x0 = (int) (au * (double) hscale);
       int x = x0 + hscale - r;
       int y = vscale - r;
-      if (curr.isGasGiant())
+      if (curr.gasGiant())
         g.drawOval(x, y, 2 * r, 2 * r);
       else
         g.fillOval(x, y, 2 * r, 2 * r);

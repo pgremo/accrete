@@ -6,7 +6,9 @@ package accrete.postscript;
 // Copyright 1997 Ian Burrell
 
 import accrete.Accrete;
-import accrete.Planetismal;
+import accrete.Planetesimal;
+
+import java.util.Random;
 
 public class AccretePostscript extends Postscript {
 
@@ -22,12 +24,12 @@ public class AccretePostscript extends Postscript {
     begin(1);
     logscale("AU");
 
-    Iterable<Planetismal> system = gen.DistributePlanets();
+    Iterable<Planetesimal> system = gen.DistributePlanets(new Random());
 
-    for (Planetismal curr : system) {
-      double au = log10(curr.getOrbitalAxis());
-      double r = Math.pow(curr.getMassSolar(), 1.0 / 3.0);
-      circle(au, 0, r, curr.isGasGiant());
+    for (Planetesimal curr : system) {
+      double au = log10(curr.axis());
+      double r = Math.pow(curr.mass(), 1.0 / 3.0);
+      circle(au, 0, r, curr.gasGiant());
     }
     showpage();
     end();
