@@ -1,6 +1,10 @@
 package accrete;
 
-import com.googlecode.totallylazy.*;
+import com.googlecode.totallylazy.Option;
+import com.googlecode.totallylazy.Pair;
+import com.googlecode.totallylazy.Sequence;
+import com.googlecode.totallylazy.functions.Function1;
+import com.googlecode.totallylazy.functions.Function2;
 
 import java.util.Comparator;
 import java.util.Random;
@@ -9,21 +13,21 @@ import static accrete.DoleParams.*;
 import static accrete.Planetesimal.PROTOPLANET_MASS;
 import static accrete.Planetesimal.RandomPlanetismal;
 import static accrete.Sequences.partitionBy;
-import static com.googlecode.totallylazy.Functions.apply;
 import static com.googlecode.totallylazy.Option.none;
 import static com.googlecode.totallylazy.Option.option;
 import static com.googlecode.totallylazy.Pair.pair;
-import static com.googlecode.totallylazy.Predicates.and;
-import static com.googlecode.totallylazy.Predicates.predicate;
 import static com.googlecode.totallylazy.Sequences.*;
+import static com.googlecode.totallylazy.functions.Functions.apply;
 import static com.googlecode.totallylazy.numbers.Numbers.add;
+import static com.googlecode.totallylazy.predicates.Predicates.and;
+import static com.googlecode.totallylazy.predicates.Predicates.predicate;
 import static java.lang.Math.*;
 import static java.util.Comparator.comparingDouble;
 
 public class Accrete {
 
     public static final Comparator<Planetesimal> axisComparator = comparingDouble(Planetesimal::axis);
-    public static final Callable2<Planetesimal, DustBand, Sequence<DustBand>> dustExpansion = (tsml, curr) -> {
+    public static final Function2<Planetesimal, DustBand, Sequence<DustBand>> dustExpansion = (tsml, curr) -> {
         double min = tsml.InnerSweptLimit();
         double max = tsml.OuterSweptLimit();
         boolean new_gas = curr.gas() && !tsml.gasGiant();
@@ -54,7 +58,7 @@ public class Accrete {
         }
         return sequence(curr);
     };
-    public static final Callable2<Planetesimal, DustBand, Double> collectDust = (tsml, dustBand) -> {
+    public static final Function2<Planetesimal, DustBand, Double> collectDust = (tsml, dustBand) -> {
         double swept_inner = tsml.InnerSweptLimit();
         double swept_outer = tsml.OuterSweptLimit();
         if (dustBand.outer() <= swept_inner || dustBand.inner() >= swept_outer) return 0.0;
@@ -75,13 +79,13 @@ public class Accrete {
 
         return volume * density;
     };
-    public static final Callable2<Sequence<DustBand>, Planetesimal, Option<? extends Pair<? extends Planetesimal, ? extends Planetesimal>>> massAccretion = (dustBands, tsml) -> {
+    public static final Function2<Sequence<DustBand>, Planetesimal, Option<? extends Pair<? extends Planetesimal, ? extends Planetesimal>>> massAccretion = (dustBands, tsml) -> {
         var new_mass = dustBands.filter(DustBand::dust).map(apply(collectDust, tsml)).reduce(add).doubleValue();
         if (new_mass - tsml.mass() <= 0.001 * new_mass) return none();
         var result = new Planetesimal(tsml.star(), tsml.axis(), tsml.eccn(), new_mass, tsml.mass() >= tsml.CriticalMass());
         return option(pair(result, result));
     };
-    public static final Callable2<Planetesimal, Planetesimal, Planetesimal> coalesce = (tsml, curr) -> {
+    public static final Function2<Planetesimal, Planetesimal, Planetesimal> coalesce = (tsml, curr) -> {
         var new_mass = curr.mass() + tsml.mass();
         var new_axis = new_mass / ((curr.mass() / curr.axis()) + (tsml.mass() / tsml.axis()));
         var term1 = curr.mass() * sqrt(curr.axis() * (1.0 - pow(curr.eccn(), 2)));
@@ -92,7 +96,7 @@ public class Accrete {
 
         return new Planetesimal(curr.star(), new_axis, new_eccn, new_mass, curr.gasGiant() || tsml.gasGiant());
     };
-    public static final Callable2<Planetesimal, Planetesimal, Boolean> tooClose = (tsml, curr) -> {
+    public static final Function2<Planetesimal, Planetesimal, Boolean> tooClose = (tsml, curr) -> {
         var dist = curr.axis() - tsml.axis();
         double dist1, dist2;
         if (dist > 0.0) {
@@ -105,13 +109,13 @@ public class Accrete {
 
         return abs(dist) <= dist1 || abs(dist) <= dist2;
     };
-    public static final Callable1<Sequence<DustBand>, DustBand> compressBand = dustBands -> {
+    public static final Function1<Sequence<DustBand>, DustBand> compressBand = dustBands -> {
         var first = dustBands.first();
         var last = dustBands.last();
         return new DustBand(first.inner(), last.outer(), first.dust(), first.gas());
     };
-    public static final Callable1<DustBand, Integer> memoizeBand = o -> (o.dust() ? 10 : 0) + (o.gas() ? 1 : 0);
-    public static final Callable2<Star, DustBand, Boolean> bandIsInBounds = (star, curr) -> curr.outer() >= star.InnermostPlanet() && curr.inner() <= star.OutermostPlanet();
+    public static final Function1<DustBand, Integer> memoizeBand = o -> (o.dust() ? 10 : 0) + (o.gas() ? 1 : 0);
+    public static final Function2<Star, DustBand, Boolean> bandIsInBounds = (star, curr) -> curr.outer() >= star.InnermostPlanet() && curr.inner() <= star.OutermostPlanet();
 
     public Sequence<Planetesimal> DistributePlanets(Random random) {
         var star = new Star(1.0, 1.0);
