@@ -22,7 +22,7 @@ import static java.util.Comparator.comparingDouble;
 
 public class Accrete {
 
-    public static final Comparator<Planetesimal> axisComparator = comparingDouble(o -> o.axis());
+    public static final Comparator<Planetesimal> axisComparator = comparingDouble(Planetesimal::axis);
     public static final Callable2<Planetesimal, DustBand, Sequence<DustBand>> dustExpansion = (tsml, curr) -> {
         double min = tsml.InnerSweptLimit();
         double max = tsml.OuterSweptLimit();
@@ -75,14 +75,11 @@ public class Accrete {
 
         return volume * density;
     };
-    public static final Callable2<Sequence<DustBand>, Planetesimal, Option<? extends Pair<? extends Planetesimal, ? extends Planetesimal>>> massAccretion = new Callable2<>() {
-        @Override
-        public Option<? extends Pair<? extends Planetesimal, ? extends Planetesimal>> call(Sequence<DustBand> dustBands, Planetesimal tsml) {
-            var new_mass = dustBands.filter(bandHasDust).map(apply(collectDust, tsml)).reduce(add).doubleValue();
-            if (new_mass - tsml.mass() <= 0.001 * new_mass) return none();
-            var result = new Planetesimal(tsml.star(), tsml.axis(), tsml.eccn(), new_mass, tsml.mass() >= tsml.CriticalMass());
-            return option(pair(result, result));
-        }
+    public static final Callable2<Sequence<DustBand>, Planetesimal, Option<? extends Pair<? extends Planetesimal, ? extends Planetesimal>>> massAccretion = (dustBands, tsml) -> {
+        var new_mass = dustBands.filter(DustBand::dust).map(apply(collectDust, tsml)).reduce(add).doubleValue();
+        if (new_mass - tsml.mass() <= 0.001 * new_mass) return none();
+        var result = new Planetesimal(tsml.star(), tsml.axis(), tsml.eccn(), new_mass, tsml.mass() >= tsml.CriticalMass());
+        return option(pair(result, result));
     };
     public static final Callable2<Planetesimal, Planetesimal, Planetesimal> coalesce = (tsml, curr) -> {
         var new_mass = curr.mass() + tsml.mass();
@@ -114,7 +111,6 @@ public class Accrete {
         return new DustBand(first.inner(), last.outer(), first.dust(), first.gas());
     };
     public static final Callable1<DustBand, Integer> memoizeBand = o -> (o.dust() ? 10 : 0) + (o.gas() ? 1 : 0);
-    public static final Predicate<DustBand> bandHasDust = curr -> curr.dust();
     public static final Callable2<Star, DustBand, Boolean> bandIsInBounds = (star, curr) -> curr.outer() >= star.InnermostPlanet() && curr.inner() <= star.OutermostPlanet();
 
     public Sequence<Planetesimal> DistributePlanets(Random random) {
@@ -134,7 +130,7 @@ public class Accrete {
     }
 
     private boolean CheckDustLeft(Sequence<DustBand> dustBands, Star star) {
-        return exists(dustBands, and(bandHasDust, predicate(apply(bandIsInBounds, star))));
+        return exists(dustBands, and(DustBand::dust, predicate(apply(bandIsInBounds, star))));
     }
 
     private Planetesimal AccreteDust(Sequence<DustBand> dustBands, Planetesimal nucleus) {

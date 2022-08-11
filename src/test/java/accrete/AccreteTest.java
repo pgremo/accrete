@@ -15,12 +15,13 @@ class AccreteTest {
         var seed = 1660075613494L;
         var random = new Random(seed);
         var gen = new Accrete();
-        var pl = gen.DistributePlanets(random).sortBy(comparingDouble(a -> a.axis())).toList();
+        var actual = gen.DistributePlanets(random).sortBy(comparingDouble(Planetesimal::axis)).toList();
+
         var star = new Star(1.0, 1.0);
 
-        var expected = List.of(new Planetesimal(star, 0.4178567041419378, 0.23408332543327948, 2.1680730674292936E-7, false), new Planetesimal(star, 0.6350509393941814, 0.1885303572412591, 3.2949153509418623E-7, false), new Planetesimal(star, 0.8673039148623127, 0.139988757614189, 4.514788162079317E-6, false), new Planetesimal(star, 1.8176450702804516, 0.047285701897312626, 1.777079528637176E-5, true), new Planetesimal(star, 3.7126415075316253, 0.023656279732320096, 3.802670328459427E-4, true), new Planetesimal(star, 8.125507250822741, 0.021658400938846523, 4.328868650915578E-4, true), new Planetesimal(star, 18.091880458244223, 0.020993942315183627, 4.390133878233909E-5, true), new Planetesimal(star, 38.43640080768976, 0.17377237150640693, 2.6604313052810256E-6, true), new Planetesimal(star, 48.405442866527956, 0.1276325052586728, 6.466022928344574E-8, false));
+        var expected = List.of(new Planetesimal(star, 0.4178567041419378, 0.23408332543327948, 2.167348292635512E-7, false),new Planetesimal(star, 0.6350509393941814, 0.1885303572412591, 3.293532824112172E-7, false),new Planetesimal(star, 0.8673035920013914, 0.13998847849128285, 4.5118455137081636E-6, false),new Planetesimal(star, 1.8176450702804516, 0.047285701897312626, 1.7700577489631473E-5, true),new Planetesimal(star, 3.7126415075316253, 0.023656279732320096, 3.793535256484035E-4, true),new Planetesimal(star, 8.125507250822741, 0.021658400938846523, 4.3191013213353304E-4, true),new Planetesimal(star, 18.091816336108582, 0.021010306994702587, 4.3781415778087645E-5, true),new Planetesimal(star, 38.437067887219754, 0.17393247153991004, 2.6539942281379695E-6, true),new Planetesimal(star, 48.4055131867508, 0.1276334274500348, 6.459424409599317E-8, false));
 
-        assertPlanetsEquals(expected, pl);
+        assertPlanetsEquals(expected, actual);
     }
 
     private void assertPlanetsEquals(Iterable<Planetesimal> expected, Iterable<Planetesimal> actual) {
