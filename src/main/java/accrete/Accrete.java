@@ -1,5 +1,6 @@
 package accrete;
 
+import com.googlecode.totallylazy.BinaryPredicate;
 import com.googlecode.totallylazy.Option;
 import com.googlecode.totallylazy.Pair;
 import com.googlecode.totallylazy.Sequence;
@@ -12,7 +13,7 @@ import java.util.Random;
 import static accrete.DoleParams.*;
 import static accrete.Planetesimal.PROTOPLANET_MASS;
 import static accrete.Planetesimal.randomPlanetesimal;
-import static accrete.Sequences.partitionBy;
+import static accrete.Sequences.partitionWith;
 import static com.googlecode.totallylazy.Option.none;
 import static com.googlecode.totallylazy.Option.option;
 import static com.googlecode.totallylazy.Pair.pair;
@@ -117,7 +118,7 @@ public class Accrete {
         var last = dustBands.last();
         return new DustBand(first.inner(), last.outer(), first.dust(), first.gas());
     };
-    public static final Function1<DustBand, Integer> memoizeBand = o -> (o.dust() ? 10 : 0) + (o.gas() ? 1 : 0);
+    public static final BinaryPredicate<DustBand> dustBandComparator = (x, y) -> x.dust() == y.dust() && x.gas() == y.gas();
     public static final Function2<Star, DustBand, Boolean> bandIsInBounds = (star, curr) -> curr.outer() >= star.InnermostPlanet() && curr.inner() <= star.OutermostPlanet();
 
     public Sequence<Planetesimal> DistributePlanets(Random random) {
@@ -149,7 +150,7 @@ public class Accrete {
     }
 
     private Sequence<DustBand> CompressDustLanes(Sequence<DustBand> dustBands) {
-        return map(partitionBy(memoizeBand, dustBands).toList(), compressBand);
+        return map(partitionWith(dustBands, dustBandComparator).realise(), compressBand);
     }
 
     private Sequence<Planetesimal> CoalescePlanetesimals(Sequence<Planetesimal> planets, Planetesimal tsml) {
