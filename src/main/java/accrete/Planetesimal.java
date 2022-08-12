@@ -1,10 +1,3 @@
-
-// Author: Ian Burrell  <iburrell@leland.stanford.edu>
-// Created: 1997/02/09
-// Modified: 
-
-// Copyright 1997 Ian Burrell
-
 package accrete;
 
 import java.util.Random;
@@ -23,7 +16,7 @@ public record Planetesimal(
 
     public static final double PROTOPLANET_MASS = 1.0E-15;
 
-    public static Planetesimal RandomPlanetismal(Random random, Star star) {
+    public static Planetesimal randomPlanetesimal(Random random, Star star) {
         return new Planetesimal(star, random.nextDouble(star.InnermostPlanet(), star.OutermostPlanet()), RandomEccentricity(random), PROTOPLANET_MASS, false);
     }
 

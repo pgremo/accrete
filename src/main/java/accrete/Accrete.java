@@ -11,7 +11,7 @@ import java.util.Random;
 
 import static accrete.DoleParams.*;
 import static accrete.Planetesimal.PROTOPLANET_MASS;
-import static accrete.Planetesimal.RandomPlanetismal;
+import static accrete.Planetesimal.randomPlanetesimal;
 import static accrete.Sequences.partitionBy;
 import static com.googlecode.totallylazy.Option.none;
 import static com.googlecode.totallylazy.Option.option;
@@ -38,19 +38,22 @@ public class Accrete {
             return sequence(
                     new DustBand(curr.inner(), min, curr.dust(), curr.gas()),
                     new DustBand(min, max, false, new_gas),
-                    new DustBand(max, curr.outer(), curr.dust(), curr.gas()));
+                    new DustBand(max, curr.outer(), curr.dust(), curr.gas())
+            );
         }
         // Case 2: Outer
         else if (curr.inner() < max && curr.outer() > max) {
             return sequence(
                     new DustBand(curr.inner(), max, false, new_gas),
-                    new DustBand(max, curr.outer(), curr.dust(), curr.gas()));
+                    new DustBand(max, curr.outer(), curr.dust(), curr.gas())
+            );
         }
         // Case 3: Inner
         else if (curr.inner() < min && curr.outer() > min) {
             return sequence(
                     new DustBand(curr.inner(), min, curr.dust(), curr.gas()),
-                    new DustBand(min, curr.outer(), false, new_gas));
+                    new DustBand(min, curr.outer(), false, new_gas)
+            );
         }
         // Case 4: Narrower
         else if (curr.inner() >= min && curr.outer() <= max) {
@@ -123,9 +126,9 @@ public class Accrete {
         var planets = empty(Planetesimal.class);
 
         while (CheckDustLeft(dustBands, star)) {
-            var tsml = AccreteDust(dustBands, RandomPlanetismal(random, star));
+            var tsml = AccreteDust(dustBands, randomPlanetesimal(random, star));
             if (sequence(0.0, PROTOPLANET_MASS).contains(tsml.mass())) continue;
-            planets = CoalescePlanetismals(planets, tsml);
+            planets = CoalescePlanetesimals(planets, tsml);
             dustBands = UpdateDustLanes(dustBands, tsml);
             dustBands = CompressDustLanes(dustBands);
         }
@@ -142,14 +145,14 @@ public class Accrete {
     }
 
     private Sequence<DustBand> UpdateDustLanes(Sequence<DustBand> dustBands, Planetesimal tsml) {
-        return flatten(map(dustBands, apply(dustExpansion, tsml)));
+        return flatMap(dustBands, apply(dustExpansion, tsml));
     }
 
     private Sequence<DustBand> CompressDustLanes(Sequence<DustBand> dustBands) {
         return map(partitionBy(memoizeBand, dustBands).toList(), compressBand);
     }
 
-    private Sequence<Planetesimal> CoalescePlanetismals(Sequence<Planetesimal> planets, Planetesimal tsml) {
+    private Sequence<Planetesimal> CoalescePlanetesimals(Sequence<Planetesimal> planets, Planetesimal tsml) {
         var divided = sortBy(planets, axisComparator).breakOn(predicate(apply(tooClose, tsml)));
 
         var previous = divided.first();
@@ -160,9 +163,7 @@ public class Accrete {
     }
 
     public static void main(String... args) {
-        var random = new Random();
-        random.setSeed(1660075613494L);
-        System.out.println(new Accrete().DistributePlanets(random).sortBy(axisComparator).toString("\n"));
+        System.out.println(new Accrete().DistributePlanets(new Random()).sortBy(axisComparator).toString("\n"));
     }
 }
 
