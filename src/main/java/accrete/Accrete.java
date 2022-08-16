@@ -89,30 +89,6 @@ public class Accrete {
         var result = new Planetesimal(tsml.star(), tsml.axis(), tsml.eccn(), new_mass, tsml.mass() >= tsml.CriticalMass());
         return option(pair(result, result));
     };
-    public static final Function2<Planetesimal, Planetesimal, Planetesimal> coalesce = (tsml, curr) -> {
-        var new_mass = curr.mass() + tsml.mass();
-        var new_axis = new_mass / ((curr.mass() / curr.axis()) + (tsml.mass() / tsml.axis()));
-        var term1 = curr.mass() * sqrt(curr.axis() * (1.0 - pow(curr.eccn(), 2)));
-        var term2 = tsml.mass() * sqrt(tsml.axis() * (1.0 - pow(tsml.eccn(), 2)));
-        var term3 = (term1 + term2) / (new_mass * sqrt(new_axis));
-        var term4 = 1.0 - pow(term3, 2);
-        var new_eccn = sqrt(abs(term4));
-
-        return new Planetesimal(curr.star(), new_axis, new_eccn, new_mass, curr.gasGiant() || tsml.gasGiant());
-    };
-    public static final Function2<Planetesimal, Planetesimal, Boolean> tooClose = (tsml, curr) -> {
-        var dist = curr.axis() - tsml.axis();
-        double dist1, dist2;
-        if (dist > 0.0) {
-            dist1 = tsml.OuterEffectLimit() - tsml.axis();
-            dist2 = curr.axis() - curr.InnerEffectLimit();
-        } else {
-            dist1 = tsml.axis() - tsml.InnerEffectLimit();
-            dist2 = curr.OuterEffectLimit() - curr.axis();
-        }
-
-        return abs(dist) <= dist1 || abs(dist) <= dist2;
-    };
     public static final Function1<Sequence<DustBand>, DustBand> compressBand = dustBands -> {
         var first = dustBands.first();
         var last = dustBands.last();
@@ -129,7 +105,7 @@ public class Accrete {
         while (CheckDustLeft(dustBands, star)) {
             var tsml = AccreteDust(dustBands, randomPlanetesimal(random, star));
             if (sequence(0.0, PROTOPLANET_MASS).contains(tsml.mass())) continue;
-            planets = CoalescePlanetesimals(planets, tsml);
+            planets = CoalescePlanetesimals(planets.sortBy(axisComparator), tsml);
             dustBands = UpdateDustLanes(dustBands, tsml);
             dustBands = CompressDustLanes(dustBands);
         }
@@ -153,14 +129,11 @@ public class Accrete {
         return map(partitionWith(dustBands, dustBandComparator).realise(), compressBand);
     }
 
-    private Sequence<Planetesimal> CoalescePlanetesimals(Sequence<Planetesimal> planets, Planetesimal tsml) {
-        var divided = sortBy(planets, axisComparator).breakOn(predicate(apply(tooClose, tsml)));
-
-        var previous = divided.first();
-        var value = sequence(headOption(divided.second()).map(apply(coalesce, tsml)).getOrElse(tsml));
-        var next = divided.second().splitAt(1).second();
-
-        return previous.join(value).join(next);
+    private Sequence<Planetesimal> CoalescePlanetesimals(Sequence<Planetesimal> source, Planetesimal x) {
+        if (source.isEmpty()) return sequence(x);
+        var h = source.head();
+        var t = source.tail();
+        return x.isTooClose(h) ? cons(x.coalesceWith(h), t) : cons(h, CoalescePlanetesimals(t, x));
     }
 
     public static void main(String... args) {
