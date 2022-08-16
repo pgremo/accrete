@@ -29,9 +29,9 @@ public class Accrete {
 
     public static final Comparator<Planetesimal> axisComparator = comparingDouble(Planetesimal::axis);
     public static final Function2<Planetesimal, DustBand, Sequence<DustBand>> dustExpansion = (tsml, curr) -> {
-        double min = tsml.InnerSweptLimit();
-        double max = tsml.OuterSweptLimit();
-        boolean new_gas = curr.gas() && !tsml.gasGiant();
+        var min = tsml.InnerSweptLimit();
+        var max = tsml.OuterSweptLimit();
+        var new_gas = curr.gas() && !tsml.gasGiant();
 
         // Current is...
         // Case 1: Wider
@@ -63,23 +63,23 @@ public class Accrete {
         return sequence(curr);
     };
     public static final Function2<Planetesimal, DustBand, Double> collectDust = (tsml, dustBand) -> {
-        double swept_inner = tsml.InnerSweptLimit();
-        double swept_outer = tsml.OuterSweptLimit();
+        var swept_inner = tsml.InnerSweptLimit();
+        var swept_outer = tsml.OuterSweptLimit();
         if (dustBand.outer() <= swept_inner || dustBand.inner() >= swept_outer) return 0.0;
 
-        double dust_density = tsml.DustDensity();
-        double crit_mass = tsml.CriticalMass();
-        double mass_density = MassDensity(dust_density, crit_mass, tsml.mass());
-        double density = !dustBand.gas() || tsml.mass() < crit_mass ? dust_density : mass_density;
+        var dust_density = tsml.DustDensity();
+        var crit_mass = tsml.CriticalMass();
+        var mass_density = MassDensity(dust_density, crit_mass, tsml.mass());
+        var density = !dustBand.gas() || tsml.mass() < crit_mass ? dust_density : mass_density;
 
-        double swept_width = swept_outer - swept_inner;
-        double outside = max(swept_outer - dustBand.outer(), 0);
-        double inside = max(dustBand.inner() - swept_inner, 0);
-        double width = swept_width - outside - inside;
+        var swept_width = swept_outer - swept_inner;
+        var outside = max(swept_outer - dustBand.outer(), 0);
+        var inside = max(dustBand.inner() - swept_inner, 0);
+        var width = swept_width - outside - inside;
 
-        double term1 = 4.0 * PI * pow(tsml.axis(), 2);
-        double term2 = 1.0 - tsml.eccn() * (outside - inside) / swept_width;
-        double volume = term1 * tsml.ReducedMargin() * width * term2;
+        var term1 = 4.0 * PI * pow(tsml.axis(), 2);
+        var term2 = 1.0 - tsml.eccn() * (outside - inside) / swept_width;
+        var volume = term1 * tsml.ReducedMargin() * width * term2;
 
         return volume * density;
     };
