@@ -126,7 +126,7 @@ public class Accrete {
     }
 
     private Sequence<DustBand> CompressDustLanes(Sequence<DustBand> dustBands) {
-        return map(partitionWith(dustBands, dustBandComparator).realise(), compressBand);
+        return map(partitionWith(dustBands, dustBandComparator), compressBand);
     }
 
     private Sequence<Planetesimal> CoalescePlanetesimals(Sequence<Planetesimal> source, Planetesimal x) {

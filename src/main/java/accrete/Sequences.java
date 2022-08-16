@@ -1,29 +1,15 @@
 package accrete;
 
 import com.googlecode.totallylazy.BinaryPredicate;
-import com.googlecode.totallylazy.Option;
-import com.googlecode.totallylazy.Pair;
 import com.googlecode.totallylazy.Sequence;
-import com.googlecode.totallylazy.functions.Function1;
 
-import static com.googlecode.totallylazy.Option.none;
-import static com.googlecode.totallylazy.Option.option;
-import static com.googlecode.totallylazy.Sequences.*;
-
-public class Sequences {
+public class Sequences extends com.googlecode.totallylazy.Sequences {
     public static <T> Sequence<Sequence<T>> partitionWith(Sequence<T> xs, BinaryPredicate<T> f) {
-        var callable = new Function1<Sequence<T>, Option<? extends Pair<? extends Sequence<T>, ? extends Sequence<T>>>>() {
-            private T last;
-
-            @Override
-            public Option<? extends Pair<? extends Sequence<T>, ? extends Sequence<T>>> call(Sequence<T> x) {
-                return isEmpty(x) ? none() : option(span(x, o -> {
-                    var result = last == null || f.matches(last, o);
-                    last = o;
-                    return result;
-                }));
-            }
-        };
-        return unfoldRight(callable, xs);
+        return xs.foldRight(empty(), (t, s) -> {
+            if (s.isEmpty()) return one(one(t));
+            var h = s.head();
+            var x = h.last();
+            return f.matches(x, t) ? cons(h.append(t), s.tail()) : cons(sequence(t), s);
+        });
     }
 }
