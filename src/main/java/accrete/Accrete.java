@@ -4,6 +4,7 @@ import com.googlecode.totallylazy.BinaryPredicate;
 import com.googlecode.totallylazy.Option;
 import com.googlecode.totallylazy.Pair;
 import com.googlecode.totallylazy.Sequence;
+import com.googlecode.totallylazy.collections.PersistentCollection;
 import com.googlecode.totallylazy.functions.Function1;
 import com.googlecode.totallylazy.functions.Function2;
 
@@ -18,6 +19,7 @@ import static com.googlecode.totallylazy.Option.none;
 import static com.googlecode.totallylazy.Option.some;
 import static com.googlecode.totallylazy.Pair.pair;
 import static com.googlecode.totallylazy.Sequences.*;
+import static com.googlecode.totallylazy.collections.PersistentSortedSet.constructors.sortedSet;
 import static com.googlecode.totallylazy.functions.Functions.apply;
 import static com.googlecode.totallylazy.numbers.Numbers.add;
 import static com.googlecode.totallylazy.predicates.Predicates.and;
@@ -115,22 +117,22 @@ public class Accrete {
         return map(partitionWith(dustBands, compareBand), compressBand);
     }
 
-    private Sequence<Planetesimal> CoalescePlanetesimals(Sequence<Planetesimal> source, Planetesimal x) {
-        if (source.isEmpty()) return sequence(x);
+    private PersistentCollection<Planetesimal> CoalescePlanetesimals(PersistentCollection<Planetesimal> source, Planetesimal x) {
+        if (source.isEmpty()) return sortedSet(axisComparator, x);
         var h = source.head();
         var t = source.tail();
-        return x.isTooClose(h) ? cons(x.coalesceWith(h), t) : cons(h, CoalescePlanetesimals(t, x));
+        return x.isTooClose(h) ? t.cons(x.coalesceWith(h)) : CoalescePlanetesimals(t, x).cons(h);
     }
 
-    public Sequence<Planetesimal> DistributePlanets(Random random) {
+    public PersistentCollection<Planetesimal> DistributePlanets(Random random) {
         var star = new Star(1.0, 1.0);
         var dustBands = sequence(new DustBand(InnerDustLimit(), OuterDustLimit(star.stellar_mass()), true, true));
-        var planets = empty(Planetesimal.class);
+        PersistentCollection<Planetesimal> planets = sortedSet(axisComparator);
 
         while (CheckDustLeft(dustBands, star)) {
             var tsml = AccreteDust(dustBands, randomPlanetesimal(random, star));
             if (sequence(0.0, PROTOPLANET_MASS).contains(tsml.mass())) continue;
-            planets = CoalescePlanetesimals(planets.sortBy(axisComparator), tsml);
+            planets = CoalescePlanetesimals(planets, tsml);
             dustBands = UpdateDustLanes(dustBands, tsml);
             dustBands = CompressDustLanes(dustBands);
         }
@@ -139,7 +141,7 @@ public class Accrete {
     }
 
     public static void main(String... args) {
-        System.out.println(new Accrete().DistributePlanets(new Random()).sortBy(axisComparator).toString("\n"));
+        System.out.println(new Accrete().DistributePlanets(new Random()).toSequence().toString("\n"));
     }
 }
 
