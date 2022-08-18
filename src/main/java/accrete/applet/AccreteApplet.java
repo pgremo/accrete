@@ -32,7 +32,7 @@ public class AccreteApplet extends Applet implements MouseListener, Runnable {
   }
 
   public void run() {
-    planets = gen.DistributePlanets(new Random());
+    planets = gen.distributePlanets(new Random());
     repaint();
   }
 

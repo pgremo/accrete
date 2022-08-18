@@ -14,10 +14,10 @@ public record Planetesimal(
         boolean gasGiant
 ) {
 
-    public static final double PROTOPLANET_MASS = 1.0E-15;
+    public static final double protoplanetMass = 1.0E-15;
 
     public static Planetesimal randomPlanetesimal(Random random, Star star) {
-        return new Planetesimal(star, random.nextDouble(star.InnermostPlanet(), star.OutermostPlanet()), RandomEccentricity(random), PROTOPLANET_MASS, false);
+        return new Planetesimal(star, random.nextDouble(star.innermostPlanet(), star.outermostPlanet()), RandomEccentricity(random), protoplanetMass, false);
     }
 
     Planetesimal coalesceWith(Planetesimal curr) {
@@ -36,45 +36,45 @@ public record Planetesimal(
         var dist = curr.axis() - axis();
         double dist1, dist2;
         if (dist > 0.0) {
-            dist1 = OuterEffectLimit() - axis();
-            dist2 = curr.axis() - curr.InnerEffectLimit();
+            dist1 = outerEffectLimit() - axis();
+            dist2 = curr.axis() - curr.innerEffectLimit();
         } else {
-            dist1 = axis() - InnerEffectLimit();
-            dist2 = curr.OuterEffectLimit() - curr.axis();
+            dist1 = axis() - innerEffectLimit();
+            dist2 = curr.outerEffectLimit() - curr.axis();
         }
 
         return abs(dist) <= dist1 || abs(dist) <= dist2;
     }
 
-    public double DustDensity() {
-        return DUST_DENSITY_COEFF * sqrt(star.stellar_mass()) * exp(-ALPHA * pow(axis, 1.0 / DoleParams.N));
+    public double dustDensity() {
+        return DUST_DENSITY_COEFF * sqrt(star.mass()) * exp(-ALPHA * pow(axis, 1.0 / N));
     }
 
     public double getMassEarth() {
         return mass * SOLAR_MASS_EARTH_MASS;
     }
 
-    double ReducedMargin() {
-        return DoleParams.ReducedMargin(mass);
+    double reducedMargin() {
+        return ReducedMargin(mass);
     }
 
-    double InnerEffectLimit() {
-        return DoleParams.InnerEffectLimit(axis, eccn, DoleParams.ReducedMargin(mass));
+    double innerEffectLimit() {
+        return InnerEffectLimit(axis, eccn, ReducedMargin(mass));
     }
 
-    double OuterEffectLimit() {
-        return DoleParams.OuterEffectLimit(axis, eccn, DoleParams.ReducedMargin(mass));
+    double outerEffectLimit() {
+        return OuterEffectLimit(axis, eccn, ReducedMargin(mass));
     }
 
-    double InnerSweptLimit() {
-        return max(DoleParams.InnerSweptLimit(axis, eccn, DoleParams.ReducedMargin(mass)), 0);
+    double innerSweptLimit() {
+        return max(InnerSweptLimit(axis, eccn, ReducedMargin(mass)), 0);
     }
 
-    double OuterSweptLimit() {
-        return DoleParams.OuterSweptLimit(axis, eccn, DoleParams.ReducedMargin(mass));
+    double outerSweptLimit() {
+        return OuterSweptLimit(axis, eccn, ReducedMargin(mass));
     }
 
-    double CriticalMass() {
-        return DoleParams.CriticalMass(axis, eccn, star.stellar_luminosity());
+    double criticalMass() {
+        return CriticalMass(axis, eccn, star.luminosity());
     }
 }

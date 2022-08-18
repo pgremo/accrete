@@ -91,11 +91,11 @@ class DoleParams {
         return scale * pow(mass, 1.0 / 3.0);
     }
 
-    static double InnerDustLimit() {
+    static double innerDustLimit() {
         return 0.0;
     }
 
-    static double OuterDustLimit(double stellar_mass) {
+    static double outerDustLimit(double stellar_mass) {
         return ScaleCubeRootMass(200.0, stellar_mass);
     }
 

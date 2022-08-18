@@ -15,7 +15,7 @@ class AccreteTest {
         var seed = 1660075613494L;
         var random = new Random(seed);
         var gen = new Accrete();
-        var actual = gen.DistributePlanets(random);
+        var actual = gen.distributePlanets(random);
 
         var star = new Star(1.0, 1.0);
 

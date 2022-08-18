@@ -24,7 +24,7 @@ public class AccretePostscript extends Postscript {
     begin(1);
     logscale("AU");
 
-    Iterable<Planetesimal> system = gen.DistributePlanets(new Random());
+    Iterable<Planetesimal> system = gen.distributePlanets(new Random());
 
     for (Planetesimal curr : system) {
       double au = log10(curr.axis());
